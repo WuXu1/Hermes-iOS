@@ -8,7 +8,7 @@ enum Design {
     // MARK: - Brand
 
     enum Brand {
-        /// Hermes warm terracotta accent.
+        /// Hermes amber. Use sparingly: primary actions, live states, focus.
         static let accent = Color(hex: 0xFFBF00)
         static let accentGradient = LinearGradient(
             colors: [accent, accent.opacity(0.8)],
@@ -20,16 +20,32 @@ enum Design {
     // MARK: - Colors
 
     enum Colors {
-        /// Deep charcoal background.
-        static let background = Color(hex: 0x2D2D2B)
-        /// Warm off-white foreground text.
-        static let foreground = Color(hex: 0xF9F9F7)
-        /// Muted foreground at 80% contrast.
-        static let secondaryForeground = foreground.opacity(0.6)
-        /// Subtle surface for cards and elevated elements.
+        // Semantic tokens. Views should use these; the aliases below keep
+        // older screens compiling.
+
+        /// App background: layered near-black.
+        static let canvas = Color(hex: 0x0B0B0D)
+        /// Solid card surface on the canvas.
+        static let surfaceSolid = Color(hex: 0x16161A)
+        /// Raised surface: user message pills, inputs, selected rows.
+        static let surfaceRaised = Color(hex: 0x1E1E23)
+        /// Hairline borders and dividers.
+        static let hairline = Color.white.opacity(0.06)
+        static let textPrimary = Color(hex: 0xF5F5F2)
+        static let textSecondary = textPrimary.opacity(0.7)
+        static let textTertiary = textPrimary.opacity(0.45)
+        static let success = Color(hex: 0x34C759)
+        static let warning = Color(hex: 0xFFB020)
+        static let danger = Color(hex: 0xFF5A52)
+
+        // Aliases for the original token names.
+
+        static let background = canvas
+        static let foreground = textPrimary
+        static let secondaryForeground = textSecondary
+        /// Translucent surface for glass-adjacent elements.
         static let surface = Color.white.opacity(0.08)
-        /// Border/divider at low opacity.
-        static let divider = Color.white.opacity(0.1)
+        static let divider = hairline
     }
 
     // MARK: - Spacing (4pt base grid)
