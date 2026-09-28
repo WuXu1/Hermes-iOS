@@ -8,6 +8,8 @@ import XCTest
 final class ScreenshotTourUITests: XCTestCase {
     private var outputDirectory: URL!
     private var app: XCUIApplication!
+    /// With LIVE_RELAY_URL and LIVE_PAIRING_CODE set, the tour pairs with a real relay instead of mocks.
+    private var liveRelayURL: String?
 
     override func setUpWithError() throws {
         guard let path = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !path.isEmpty else {
@@ -20,9 +22,14 @@ final class ScreenshotTourUITests: XCTestCase {
         app = XCUIApplication()
         app.launchEnvironment["UITEST_DEFAULTS_SUITE"] = "uitest.tour.\(UUID().uuidString)"
         app.launchEnvironment["UITEST_KEYCHAIN_SERVICE"] = "uitest.tour.\(UUID().uuidString)"
-        app.launchEnvironment["UITEST_PAIRING_MODE"] = "mock"
+        let environment = ProcessInfo.processInfo.environment
+        liveRelayURL = environment["LIVE_RELAY_URL"].flatMap { $0.isEmpty ? nil : $0 }
+        let liveCode = environment["LIVE_PAIRING_CODE"].flatMap { $0.isEmpty ? nil : $0 }
+        if liveRelayURL == nil {
+            app.launchEnvironment["UITEST_PAIRING_MODE"] = "mock"
+        }
         app.launch()
-        pair()
+        pair(code: liveCode ?? "ABCD-EFGH")
     }
 
     @MainActor
@@ -61,20 +68,23 @@ final class ScreenshotTourUITests: XCTestCase {
         app.tabBars.buttons["Chat"].tap()
         if tapIfExists(app.buttons["chat.history"]) { capture("09-history"); dismissSheet() }
         if tapIfExists(app.buttons["Open settings"]) { capture("10-settings"); dismissSheet() }
-        let composer = app.textFields["chat.composer"]
-        if composer.waitForExistence(timeout: 3) {
-            composer.tap()
-            composer.typeText("/clear")
-            if tapIfExists(app.buttons["Send message"]), tapIfExists(app.buttons["Clear"]) {
-                sleep(1)
-                capture("11-chat-empty")
+        // Chat steps change the account's shared current chat; mock mode only.
+        if liveRelayURL == nil {
+            let composer = app.textFields["chat.composer"]
+            if composer.waitForExistence(timeout: 3) {
+                composer.tap()
+                composer.typeText("/clear")
+                if tapIfExists(app.buttons["Send message"]), tapIfExists(app.buttons["Clear"]) {
+                    sleep(1)
+                    capture("11-chat-empty")
+                }
             }
-        }
-        if tapIfExists(app.buttons["chat.new"]) {
-            if tapIfExists(app.buttons["chat.assign"]) {
-                if tapIfExists(app.buttons["Researcher"]) {
-                    app.typeText("Compare the three best e-bikes under £2,000")
-                    capture("12-chat-assign")
+            if tapIfExists(app.buttons["chat.new"]) {
+                if tapIfExists(app.buttons["chat.assign"]) {
+                    if tapIfExists(app.buttons["Researcher"]) {
+                        app.typeText("Compare the three best e-bikes under £2,000")
+                        capture("12-chat-assign")
+                    }
                 }
             }
         }
@@ -82,20 +92,31 @@ final class ScreenshotTourUITests: XCTestCase {
 
     // MARK: Helpers
 
-    private func pair() {
+    private func pair(code: String) {
         let manual = app.buttons["Enter Code Manually"]
         guard manual.waitForExistence(timeout: 8) else { return }
         manual.tap()
+        if let liveRelayURL {
+            let relayField = app.textFields["Relay URL"]
+            XCTAssertTrue(relayField.waitForExistence(timeout: 5))
+            relayField.tap()
+            relayField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 60))
+            relayField.typeText(liveRelayURL)
+        }
         let field = app.textFields["Setup code"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
-        field.typeText("ABCD-EFGH")
+        field.typeText(code)
         app.buttons["Connect Hermes"].tap()
+        // Pairing success, then (for real devices) permissions onboarding, each end in Continue.
         let continueButton = app.buttons["Continue"]
-        if continueButton.waitForExistence(timeout: 5) {
+        for _ in 0 ..< 3 {
+            guard continueButton.waitForExistence(timeout: liveRelayURL == nil ? 5 : 20) else { break }
             continueButton.tap()
+            sleep(2)
+            if app.tabBars.firstMatch.exists { break }
         }
-        _ = app.tabBars.firstMatch.waitForExistence(timeout: 8)
+        _ = app.tabBars.firstMatch.waitForExistence(timeout: liveRelayURL == nil ? 8 : 20)
         sleep(1)
     }
 
