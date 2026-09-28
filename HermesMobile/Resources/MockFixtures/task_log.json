@@ -1,0 +1,8 @@
+{
+ "task_id": "t_rev3310",
+ "path": "/opt/data/kanban/logs/t_rev3310.log",
+ "exists": true,
+ "size_bytes": 640,
+ "truncated": false,
+ "content": "[16:01:12] claimed by coder\n[16:01:14] reading task and parent handoffs\n[16:02:40] wrote clean_bank_csv.py\n[16:03:05] ran on sample export: 412 rows, 3 duplicates flagged\n[16:03:30] attached clean_bank_csv.py, sample-output.md\n[16:03:31] requested review\n"
+}

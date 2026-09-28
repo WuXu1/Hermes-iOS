@@ -1,0 +1,10 @@
+{
+ "memory": {
+  "content": "- The user's team: chief of staff (default), researcher, operator, coder, reviewer.\n- Kanban tasks for web chores go to operator; research to researcher.\n- The user prefers short answers with sources.\n",
+  "updatedAt": 1790524000
+ },
+ "user": {
+  "content": "- Lives in London; prefers metric units.\n- Works on a Mac mini; iPhone for everything else.\n- Likes cycling and photography.\n",
+  "updatedAt": 1790574000
+ }
+}

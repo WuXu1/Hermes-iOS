@@ -1,0 +1,82 @@
+[
+ {
+  "name": "hermes-ios",
+  "description": "Access real-time iOS sensor data: location, health and activity.",
+  "category": "mobile",
+  "enabled": true,
+  "usage": 12,
+  "provenance": "local"
+ },
+ {
+  "name": "web-research",
+  "description": "Search, read and cite sources for research questions.",
+  "category": "research",
+  "enabled": true,
+  "usage": 31,
+  "provenance": "bundled"
+ },
+ {
+  "name": "arxiv",
+  "description": "Search and summarize papers from arXiv.",
+  "category": "research",
+  "enabled": true,
+  "usage": 2,
+  "provenance": "bundled"
+ },
+ {
+  "name": "browser",
+  "description": "Drive a real browser to navigate, read and fill forms.",
+  "category": "browser",
+  "enabled": true,
+  "usage": 18,
+  "provenance": "bundled"
+ },
+ {
+  "name": "pdf",
+  "description": "Read, split, merge and fill PDF files.",
+  "category": "documents",
+  "enabled": true,
+  "usage": 4,
+  "provenance": "bundled"
+ },
+ {
+  "name": "docx",
+  "description": "Create and edit Word documents.",
+  "category": "documents",
+  "enabled": false,
+  "usage": 0,
+  "provenance": "bundled"
+ },
+ {
+  "name": "google-workspace",
+  "description": "Gmail, Calendar and Drive through the Google APIs.",
+  "category": "productivity",
+  "enabled": false,
+  "usage": 0,
+  "provenance": "bundled"
+ },
+ {
+  "name": "notion",
+  "description": "Read and update Notion pages and databases.",
+  "category": "productivity",
+  "enabled": true,
+  "usage": 1,
+  "provenance": "bundled"
+ },
+ {
+  "name": "claude-code",
+  "description": "Delegate coding to Claude Code CLI (features, PRs).",
+  "category": "autonomous-ai-agents",
+  "enabled": true,
+  "usage": 0,
+  "provenance": "bundled"
+ },
+ {
+  "name": "codex",
+  "description": "Delegate coding to OpenAI Codex CLI (features, PRs).",
+  "category": "autonomous-ai-agents",
+  "enabled": true,
+  "usage": 0,
+  "provenance": "bundled"
+ }
+]

@@ -1,0 +1,147 @@
+{
+ "blueprints": [
+  {
+   "key": "morning-brief",
+   "title": "Morning briefing",
+   "description": "A short daily briefing: today's calendar, weather, and anything urgent waiting on you.",
+   "category": "daily",
+   "tags": [
+    "daily"
+   ],
+   "fields": [
+    {
+     "name": "time",
+     "type": "time",
+     "label": "What time?",
+     "default": "08:00",
+     "options": [],
+     "optional": false,
+     "strict": true,
+     "help": "24h local time, e.g. 08:00"
+    },
+    {
+     "name": "deliver",
+     "type": "enum",
+     "label": "Where to deliver?",
+     "default": "origin",
+     "options": [
+      "origin",
+      "local"
+     ],
+     "optional": false,
+     "strict": false,
+     "help": ""
+    }
+   ],
+   "schedule": "{minute} {hour} * * *",
+   "scheduleHuman": "daily at 08:00"
+  },
+  {
+   "key": "news-digest",
+   "title": "News digest",
+   "description": "A short digest of news on a topic you care about.",
+   "category": "general",
+   "tags": [
+    "news"
+   ],
+   "fields": [
+    {
+     "name": "topic",
+     "type": "text",
+     "label": "What topic?",
+     "default": "AI and technology",
+     "options": [],
+     "optional": false,
+     "strict": true,
+     "help": "a subject, product, person, or search phrase"
+    },
+    {
+     "name": "time",
+     "type": "time",
+     "label": "What time?",
+     "default": "18:00",
+     "options": [],
+     "optional": false,
+     "strict": true,
+     "help": ""
+    },
+    {
+     "name": "recurrence",
+     "type": "weekdays",
+     "label": "Repeat on",
+     "default": "weekdays",
+     "options": [
+      "everyday",
+      "weekdays",
+      "weekends"
+     ],
+     "optional": false,
+     "strict": true,
+     "help": ""
+    }
+   ],
+   "schedule": "{minute} {hour} * * 1-5",
+   "scheduleHuman": "weekdays at 18:00"
+  },
+  {
+   "key": "price-watch",
+   "title": "Price watch",
+   "description": "Watch a product, flight or listing and tell you when the price drops.",
+   "category": "general",
+   "tags": [
+    "shopping"
+   ],
+   "fields": [
+    {
+     "name": "item",
+     "type": "text",
+     "label": "What exactly to watch?",
+     "default": "",
+     "options": [],
+     "optional": false,
+     "strict": true,
+     "help": "URL or precise description"
+    },
+    {
+     "name": "interval_min",
+     "type": "enum",
+     "label": "How often?",
+     "default": "60",
+     "options": [
+      "30",
+      "60",
+      "240"
+     ],
+     "optional": false,
+     "strict": true,
+     "help": "minutes between checks"
+    }
+   ],
+   "schedule": "*/{interval_min} * * * *",
+   "scheduleHuman": "on a schedule"
+  },
+  {
+   "key": "weekly-review",
+   "title": "Weekly review",
+   "description": "A Sunday-evening look back at the week and a plan for the next one.",
+   "category": "weekly",
+   "tags": [
+    "weekly"
+   ],
+   "fields": [
+    {
+     "name": "time",
+     "type": "time",
+     "label": "What time?",
+     "default": "18:00",
+     "options": [],
+     "optional": false,
+     "strict": true,
+     "help": ""
+    }
+   ],
+   "schedule": "{minute} {hour} * * 0",
+   "scheduleHuman": "sunday at 18:00"
+  }
+ ]
+}

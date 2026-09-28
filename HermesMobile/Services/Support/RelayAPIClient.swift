@@ -80,6 +80,8 @@ final class RelayAPIClient {
         case unauthorized(String)
         case invalidURL(String)
         case requestFailed(String)
+        /// A non-2xx response from `request(...)`, with its status code.
+        case httpStatus(Int, String)
 
         var errorDescription: String? {
             switch self {
@@ -88,6 +90,8 @@ final class RelayAPIClient {
             case .invalidURL(let url):
                 "Invalid relay URL: \(url)"
             case .requestFailed(let message):
+                message
+            case .httpStatus(_, let message):
                 message
             }
         }
@@ -137,6 +141,27 @@ final class RelayAPIClient {
             body: requestBody
         )
         return try await send(request)
+    }
+
+    /// Any HTTP method, with query items; errors carry the HTTP status.
+    func request<T: Decodable>(
+        path: String,
+        method: String,
+        query: [String: String] = [:],
+        body: (any Encodable)? = nil,
+        accessToken: String? = nil
+    ) async throws -> T {
+        var fullPath = path
+        if !query.isEmpty {
+            var components = URLComponents()
+            components.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
+            if let encoded = components.percentEncodedQuery {
+                fullPath += (path.contains("?") ? "&" : "?") + encoded
+            }
+        }
+        let requestBody = try body.map { try encoder.encode($0) }
+        let request = try makeRequest(path: fullPath, method: method, accessToken: accessToken, body: requestBody)
+        return try await send(request, includeStatus: true)
     }
 
     private func makeRequest(
@@ -249,7 +274,7 @@ final class RelayAPIClient {
         }
     }
 
-    private func send<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private func send<T: Decodable>(_ request: URLRequest, includeStatus: Bool = false) async throws -> T {
         let (data, response) = try await session.data(for: request)
         let httpResponse = response as? HTTPURLResponse
 
@@ -262,7 +287,7 @@ final class RelayAPIClient {
                 if httpResponse.statusCode == 401 {
                     return .unauthorized(message)
                 }
-                return .requestFailed(message)
+                return includeStatus ? .httpStatus(httpResponse.statusCode, message) : .requestFailed(message)
             }
 
             if let errorEnvelope = try? decoder.decode(ErrorEnvelope.self, from: data) {

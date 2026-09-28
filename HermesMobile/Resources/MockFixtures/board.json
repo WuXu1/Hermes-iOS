@@ -1,0 +1,222 @@
+{
+ "columns": [
+  {
+   "name": "triage",
+   "tasks": []
+  },
+  {
+   "name": "todo",
+   "tasks": [
+    {
+     "id": "t_todo5b2",
+     "title": "Review monitor comparison",
+     "body": "Goal: Review monitor comparison.",
+     "assignee": "reviewer",
+     "status": "todo",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790613120,
+     "started_at": null,
+     "completed_at": null,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": null
+    }
+   ]
+  },
+  {
+   "name": "scheduled",
+   "tasks": []
+  },
+  {
+   "name": "ready",
+   "tasks": [
+    {
+     "id": "t_rdy9e41",
+     "title": "Best time to visit Lisbon in spring",
+     "body": "Goal: Best time to visit Lisbon in spring.",
+     "assignee": "researcher",
+     "status": "ready",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790613700,
+     "started_at": null,
+     "completed_at": null,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": null
+    }
+   ]
+  },
+  {
+   "name": "running",
+   "tasks": [
+    {
+     "id": "t_run41a9",
+     "title": "Compare 4K monitors under $400",
+     "body": "Goal: shortlist 3 4K monitors under $400 for photo editing.\n\nContext: Mac mini, USB-C preferred, matte screen.\n\nDone when: a comparison table with sources is attached.",
+     "assignee": "researcher",
+     "status": "running",
+     "priority": 1,
+     "created_by": "default",
+     "created_at": 1790613100,
+     "started_at": 1790613580,
+     "completed_at": null,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": null
+    },
+    {
+     "id": "t_run88f0",
+     "title": "Script to rename photos by capture date",
+     "body": "Goal: Script to rename photos by capture date.",
+     "assignee": "coder",
+     "status": "running",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790612500,
+     "started_at": 1790612800,
+     "completed_at": null,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": null
+    }
+   ]
+  },
+  {
+   "name": "blocked",
+   "tasks": [
+    {
+     "id": "t_blk7c21",
+     "title": "Check my Amtrak refund status",
+     "body": "Goal: Check my Amtrak refund status.",
+     "assignee": "operator",
+     "status": "blocked",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790611300,
+     "started_at": 1790611500,
+     "completed_at": null,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": "Needs you: amtrak.com asks for a sign-in before showing refunds. Log in once, then unblock.",
+     "session_id": null,
+     "block_kind": "human",
+     "latest_summary": null
+    }
+   ]
+  },
+  {
+   "name": "review",
+   "tasks": [
+    {
+     "id": "t_rev3310",
+     "title": "Clean up bank export CSV",
+     "body": "Goal: Clean up bank export CSV.",
+     "assignee": "coder",
+     "status": "review",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790606800,
+     "started_at": 1790607000,
+     "completed_at": null,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": "Wrote clean_bank_csv.py: normalizes dates, merges pending rows and flags duplicates. Tested on the sample export (412 rows, 3 duplicates flagged)."
+    }
+   ]
+  },
+  {
+   "name": "done",
+   "tasks": [
+    {
+     "id": "t_don0a17",
+     "title": "Find the current stable Python version",
+     "body": "Goal: Find the current stable Python version.",
+     "assignee": "researcher",
+     "status": "done",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790608000,
+     "started_at": 1790608050,
+     "completed_at": 1790608400,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": "The current stable release is Python 3.14.7 (5 August 2026). Source: python.org/downloads."
+    },
+    {
+     "id": "t_don4c9d",
+     "title": "Return policy for Sony WH-1000XM6",
+     "body": "Goal: Return policy for Sony WH-1000XM6.",
+     "assignee": "operator",
+     "status": "done",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790528000,
+     "started_at": 1790528100,
+     "completed_at": 1790528500,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": "Sony accepts returns within 30 days if the headphones are in original condition; a return label is free from the order page."
+    },
+    {
+     "id": "t_don77e2",
+     "title": "Summarize this week's AI news",
+     "body": "Goal: Summarize this week's AI news.",
+     "assignee": "researcher",
+     "status": "done",
+     "priority": 0,
+     "created_by": "default",
+     "created_at": 1790444000,
+     "started_at": 1790444100,
+     "completed_at": 1790445000,
+     "workspace_kind": "scratch",
+     "result": null,
+     "consecutive_failures": 0,
+     "worker_pid": null,
+     "last_failure_error": null,
+     "session_id": null,
+     "block_kind": null,
+     "latest_summary": "Five stories this week: new open-weight models, a chip export update, and three product launches. Full summary attached."
+    }
+   ]
+  }
+ ]
+}

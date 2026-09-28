@@ -1,0 +1,16 @@
+{
+ "daily": [],
+ "by_model": [],
+ "by_task": [],
+ "totals": {
+  "total_input": 182340,
+  "total_output": 9120,
+  "total_cache_read": 402000,
+  "total_reasoning": 800,
+  "total_estimated_cost": 0.084,
+  "total_actual_cost": 0,
+  "total_sessions": 23,
+  "total_api_calls": 61
+ },
+ "period_days": 7
+}
