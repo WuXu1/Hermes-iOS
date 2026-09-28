@@ -51,6 +51,7 @@ final class ScreenshotTourUITests: XCTestCase {
                     dismissSheet()
                 }
             case "Library":
+                if openFirst(identifierPrefix: "library.memory.") { capture("07b-memory"); goBack() }
                 if tapIfExists(app.buttons["Skills"]) { sleep(1); capture("08-library-skills") }
             default:
                 break

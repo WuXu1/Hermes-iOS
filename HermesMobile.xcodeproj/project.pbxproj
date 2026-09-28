@@ -201,6 +201,7 @@
 		EF8D01C28E3DA97046B0BB6E /* AuthTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3B66D321B1CAE14ABFE741 /* AuthTokens.swift */; };
 		F1C8465D9765DFE675AEDC48 /* TaskLogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 972A4FBDBCB6413321FD2EE7 /* TaskLogScreen.swift */; };
 		F2254795B1115F45F53A84C6 /* session_messages.json in Resources */ = {isa = PBXBuildFile; fileRef = 76E0404B9E93715C5E57AA88 /* session_messages.json */; };
+		F39A44558F87CC1947C9B0A3 /* SkillsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C441BABF72EDB9E521A36B /* SkillsListView.swift */; };
 		F42A47DBA662BB01E6AB62D4 /* AutomationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99747A1BE7F094FECD6B1BD /* AutomationModels.swift */; };
 		F4CF86B7AFB2A467753E72A0 /* LiveVoiceSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607671AC8EF52AAFE3131430 /* LiveVoiceSessionService.swift */; };
 		F5674A24F794B94C05ECE13D /* InboxActionDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A7265DC07E05B68C845778 /* InboxActionDescriptor.swift */; };
@@ -402,6 +403,7 @@
 		B0579B075189F65103B6B277 /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
 		B17FA563A84FF6E9434C7AD7 /* LiveMediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMediaService.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6071829304152B3 /* CarPlayVoiceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayVoiceManager.swift; sourceTree = "<group>"; };
+		B2C441BABF72EDB9E521A36B /* SkillsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SkillsListView.swift; path = SkillsListView.swift; sourceTree = "<group>"; };
 		B32C4BA0874325E3BB8C0A2B /* LibraryModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LibraryModels.swift; path = LibraryModels.swift; sourceTree = "<group>"; };
 		B354E6E6D6AC21EDD7FE239F /* PermissionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCard.swift; sourceTree = "<group>"; };
 		B38CB9F28FDEBB0ED738F6DE /* SettingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionView.swift; sourceTree = "<group>"; };
@@ -962,6 +964,7 @@
 			isa = PBXGroup;
 			children = (
 				96AC45C1A338916D8E1FC115 /* LibraryScreen.swift */,
+				B2C441BABF72EDB9E521A36B /* SkillsListView.swift */,
 			);
 			name = Library;
 			path = Library;
@@ -1333,6 +1336,7 @@
 				A3464C388B48C9F6F33AC858 /* RelativeTime.swift in Sources */,
 				064E41B585922DC6DDFBD367 /* ChatEmptyState.swift in Sources */,
 				BE0F455FB1AE95DA8518C7C1 /* JobDetailScreen.swift in Sources */,
+				F39A44558F87CC1947C9B0A3 /* SkillsListView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
