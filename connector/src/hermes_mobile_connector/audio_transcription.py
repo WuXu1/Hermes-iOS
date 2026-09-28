@@ -43,6 +43,17 @@ GEMINI_AUDIO_TYPES = {
 }
 
 
+_EXTENSION_TYPES = {
+    ".wav": "audio/wav", ".mp3": "audio/mpeg", ".aiff": "audio/aiff", ".aif": "audio/aiff",
+    ".aac": "audio/aac", ".ogg": "audio/ogg", ".flac": "audio/flac", ".m4a": "audio/mp4", ".mp4": "audio/mp4",
+}
+
+
+def mime_type_for_path(path: Path) -> str:
+    """Audio type from the extension; unknown types are converted with ffmpeg before sending."""
+    return _EXTENSION_TYPES.get(path.suffix.lower(), "application/octet-stream")
+
+
 class TranscriptionError(RuntimeError):
     """Raised when audio can't be transcribed; the message is shown to the agent."""
 

@@ -20,6 +20,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils &
     rm -rf /var/lib/apt/lists/* && \
     uv pip install --python /opt/hermes/.venv/bin/python --no-cache firecrawl-anydoc==0.2.4
 
+# hermes-webui: a browser UI for this Hermes, and the server the Hermex iOS app
+# connects to. It runs Hermes in-process on Hermes's own venv, so it lives here.
+ARG HERMES_WEBUI_REF=c296673ebfaf98750fe38438bc71f0cbb1f75777
+RUN mkdir -p /opt/hermes-webui && \
+    curl -fsSL "https://github.com/nesquena/hermes-webui/archive/${HERMES_WEBUI_REF}.tar.gz" \
+        | tar xz -C /opt/hermes-webui --strip-components=1 && \
+    chown -R hermes /opt/hermes-webui
+
 RUN python3 -m venv /opt/hermes-mobile/.venv && \
     /opt/hermes-mobile/.venv/bin/python -m pip install --no-cache-dir /opt/hermes-mobile/connector && \
     /opt/hermes-mobile/.venv/bin/hermes-mobile --help >/dev/null

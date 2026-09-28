@@ -13,6 +13,7 @@ from pathlib import Path
 import httpx
 import qrcode
 
+from .audio_transcription import TranscriptionConfig, TranscriptionError, mime_type_for_path, transcribe_audio
 from .client import HermesMobileConnector
 from .service_management import build_service_manager
 
@@ -413,6 +414,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("pair-phone", help="Generate a short-lived phone pairing code and QR.")
     subparsers.add_parser("run", help="Run the long-lived Hermes Mobile connector.")
     subparsers.add_parser("status", help="Show the current connector state.")
+    transcribe = subparsers.add_parser(
+        "transcribe", help="Transcribe an audio file with Gemini (a Hermes STT command provider)."
+    )
+    transcribe.add_argument("input", type=Path)
+    transcribe.add_argument("--output", type=Path, help="Write the transcript here instead of stdout.")
     subparsers.add_parser("validate-mcp", help="Verify Hermes can discover the Hermes Mobile MCP tools.")
     subparsers.add_parser("reset", help="Remove local connector state and start fresh.")
 
@@ -756,11 +762,28 @@ def _run_foreground(connector: HermesMobileConnector) -> int:
     return 0
 
 
+def cmd_transcribe(args: argparse.Namespace) -> int:
+    try:
+        transcript = asyncio.run(transcribe_audio(
+            args.input.read_bytes(), mime_type_for_path(args.input), config=TranscriptionConfig.from_env()
+        ))
+    except (OSError, TranscriptionError) as exc:
+        print(f"Transcription failed: {exc}", file=sys.stderr)
+        return 1
+    if args.output:
+        args.output.write_text(transcript + "\n", encoding="utf-8")
+    else:
+        print(transcript)
+    return 0
+
+
 # ── Entry point ──────────────────────────────────────────────────
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "transcribe":
+        return cmd_transcribe(args)
     connector = HermesMobileConnector()
 
     if args.command is None:

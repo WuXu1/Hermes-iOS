@@ -31,6 +31,7 @@ CONNECTOR_SETUP_SECRET=${{relay.CONNECTOR_SETUP_SECRET}}
 DEEPSEEK_API_KEY=<your key>
 HERMES_TIMEZONE=Europe/London          # your zone; cron schedules and "today" use it
 GEMINI_API_KEY=<optional>              # free AI Studio key; used only to transcribe audio attachments
+HERMES_WEBUI_PASSWORD=<optional>       # enables hermes-webui on port 8787 (browser UI, Hermex); add a domain: railway domain -s hermes-host -p 8787
 HERMES_DASHBOARD=1                     # loopback Hermes API for the app's
 HERMES_DASHBOARD_HOST=127.0.0.1        # Team, Automations and Library screens
 HERMES_DASHBOARD_PORT=9119
