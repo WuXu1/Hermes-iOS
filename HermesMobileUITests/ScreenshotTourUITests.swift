@@ -55,6 +55,23 @@ final class ScreenshotTourUITests: XCTestCase {
         app.tabBars.buttons["Chat"].tap()
         if tapIfExists(app.buttons["chat.history"]) { capture("09-history"); dismissSheet() }
         if tapIfExists(app.buttons["Open settings"]) { capture("10-settings"); dismissSheet() }
+        let composer = app.textFields["chat.composer"]
+        if composer.waitForExistence(timeout: 3) {
+            composer.tap()
+            composer.typeText("/clear")
+            if tapIfExists(app.buttons["Send message"]), tapIfExists(app.buttons["Clear"]) {
+                sleep(1)
+                capture("11-chat-empty")
+            }
+        }
+        if tapIfExists(app.buttons["chat.new"]) {
+            if tapIfExists(app.buttons["chat.assign"]) {
+                if tapIfExists(app.buttons["Researcher"]) {
+                    app.typeText("Compare the three best e-bikes under £2,000")
+                    capture("12-chat-assign")
+                }
+            }
+        }
     }
 
     // MARK: Helpers

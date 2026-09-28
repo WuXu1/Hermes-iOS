@@ -11,6 +11,7 @@
 		03B323E60712D2CA303797A3 /* MockInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8D4D1AE1F87252EEB0C2FF /* MockInboxService.swift */; };
 		045CBCF8ADA710846AF339B8 /* HermesClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6D891E4F6D043CE9C6CC15 /* HermesClientProtocol.swift */; };
 		0473E620C237D0016A164470 /* MockNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18F83ECB3EC666614F9D54D /* MockNotificationService.swift */; };
+		064E41B585922DC6DDFBD367 /* ChatEmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11D446FB1CFBB3BABA3280A /* ChatEmptyState.swift */; };
 		072CE0C8A7A668AA18B93FEA /* LiveInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE23CAFCDB6E64ED3FFB78BB /* LiveInboxService.swift */; };
 		07CBAF78A59A8936AD0CF6BE /* LivePairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1DE23F50DFDF112A61490D /* LivePairingService.swift */; };
 		0B512CBC16260044F6C0004D /* InboxLocalState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92C3AB68B134D4A59172990 /* InboxLocalState.swift */; };
@@ -453,6 +454,7 @@
 		EF9D9C3F3DC8A0B7DF53278B /* UserDefaultsAppPersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppPersistenceStore.swift; sourceTree = "<group>"; };
 		F04946FE9FF83A56CB375C55 /* TeamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TeamModels.swift; path = TeamModels.swift; sourceTree = "<group>"; };
 		F07B14E26F36BD2CD9778781 /* PairingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingStore.swift; sourceTree = "<group>"; };
+		F11D446FB1CFBB3BABA3280A /* ChatEmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatEmptyState.swift; path = ChatEmptyState.swift; sourceTree = "<group>"; };
 		F1C1480E81ECE5DF054BBB3B /* ConversationsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConversationsStore.swift; path = ConversationsStore.swift; sourceTree = "<group>"; };
 		F3344888B0E32825FB43BBD5 /* HermesWorkspaceAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HermesWorkspaceAPI.swift; path = HermesWorkspaceAPI.swift; sourceTree = "<group>"; };
 		F5CD2BC0D1F377A4211097C1 /* GlassCircleButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCircleButton.swift; sourceTree = "<group>"; };
@@ -692,6 +694,7 @@
 				4F8057761C060F666F9A9F5D /* TypingDotsView.swift */,
 				99D21F03C721F54F30751984 /* VoiceSessionBanner.swift */,
 				A80648F2BBD9E9B12BC77F71 /* HistorySheet.swift */,
+				F11D446FB1CFBB3BABA3280A /* ChatEmptyState.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -1325,6 +1328,7 @@
 				5A694B15985D69DF6561BC33 /* TaskDetailScreen.swift in Sources */,
 				F1C8465D9765DFE675AEDC48 /* TaskLogScreen.swift in Sources */,
 				A3464C388B48C9F6F33AC858 /* RelativeTime.swift in Sources */,
+				064E41B585922DC6DDFBD367 /* ChatEmptyState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

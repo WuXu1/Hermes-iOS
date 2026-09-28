@@ -25,7 +25,7 @@ struct MessageBubble: View {
         } else {
             HStack(alignment: .top, spacing: Design.Spacing.xs) {
                 hermesMessage
-                Spacer(minLength: Design.Spacing.xxl)
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, Design.Spacing.md)
         }
@@ -67,18 +67,18 @@ struct MessageBubble: View {
                         && message.content.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil
                     if !message.content.isEmpty && !isAttachmentPlaceholder {
                         MarkdownContentView(content: message.content, isStreaming: false)
-                            .foregroundStyle(Design.Colors.foreground)
+                            .foregroundStyle(Design.Colors.textPrimary)
                             .padding(.horizontal, Design.Spacing.md)
                             .padding(.vertical, Design.Spacing.sm)
-                            .background(Design.Colors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
+                            .background(Design.Colors.surfaceRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xl, style: .continuous))
                     }
                 }
 
                 HStack(spacing: Design.Spacing.xxs) {
                     Text(message.timestamp, style: .time)
                         .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .foregroundStyle(Design.Colors.textTertiary)
 
                     Image(systemName: message.status.displayIcon)
                         .font(.system(size: Design.Size.iconTiny))
@@ -134,7 +134,7 @@ struct MessageBubble: View {
                 if !message.isStreaming {
                     Text(message.timestamp, style: .time)
                         .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .foregroundStyle(Design.Colors.textTertiary)
                 }
 
                 if message.status == .failed {

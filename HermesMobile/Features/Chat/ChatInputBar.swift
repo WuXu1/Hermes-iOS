@@ -10,6 +10,9 @@ struct ChatInputBar: View {
     let onStop: () -> Void
     let onAttach: () -> Void
     let onSlashCommand: (SlashCommand, String?) -> Void
+    /// When set, sending creates a kanban task for this role instead of a chat message.
+    var assignee: Binding<String?> = .constant(nil)
+    var assignableRoles: [HermesProfile] = []
 
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
@@ -18,7 +21,14 @@ struct ChatInputBar: View {
     @State private var speechService = LiveSpeechService()
     @State private var dictationBaseText = ""
 
+    private var assignedStyle: RoleStyle? {
+        assignee.wrappedValue.map { RoleStyle.forProfile($0) }
+    }
+
     private var canSend: Bool {
+        if assignee.wrappedValue != nil {
+            return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasAttachments = !pendingAttachments.isEmpty
         let hasRunnableSlashCommand = isSlashMode && hasText && text.trimmingCharacters(in: .whitespacesAndNewlines) != "/" && !hasAttachments
@@ -26,7 +36,7 @@ struct ChatInputBar: View {
     }
 
     private var isSlashMode: Bool {
-        text.hasPrefix("/")
+        assignee.wrappedValue == nil && text.hasPrefix("/")
     }
 
     /// Parses the command and any trailing argument from the text field.
@@ -86,9 +96,13 @@ struct ChatInputBar: View {
                     attachmentPreviewStrip
                 }
 
+                if let style = assignedStyle {
+                    assignmentChip(style)
+                }
+
                 // Text input area
                 TextField(
-                    speechService.isListening ? "Listening..." : "Reply to Hermes",
+                    speechService.isListening ? "Listening..." : assignedStyle.map { "Describe the task for \($0.displayName)" } ?? "Reply to Hermes",
                     text: $text,
                     axis: .vertical
                 )
@@ -120,6 +134,11 @@ struct ChatInputBar: View {
                             .clipShape(Circle())
                     }
                     .accessibilityLabel("Add attachment")
+                    .disabled(assignee.wrappedValue != nil)
+
+                    if !assignableRoles.isEmpty {
+                        assignMenu
+                    }
 
                     Spacer()
 
@@ -139,7 +158,7 @@ struct ChatInputBar: View {
                     }
 
                     // Talk mode button (right side, before send)
-                    if !isStreaming && !speechService.isListening && !canSend {
+                    if !isStreaming && !speechService.isListening && !canSend && assignee.wrappedValue == nil {
                         Button {
                             router.isVoiceOverlayPresented = true
                         } label: {
@@ -160,11 +179,15 @@ struct ChatInputBar: View {
                 .padding(.horizontal, Design.Spacing.sm)
                 .padding(.bottom, Design.Spacing.sm)
             }
-            .background(Design.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xxl))
+            .adaptiveGlass(in: RoundedRectangle(cornerRadius: Design.CornerRadius.xxl, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Design.CornerRadius.xxl, style: .continuous)
+                    .strokeBorder(assignedStyle?.color.opacity(0.6) ?? .clear, lineWidth: 1.2)
+            )
             .padding(.horizontal, Design.Spacing.md)
-            .padding(.bottom, Design.Spacing.md)
+            .padding(.bottom, Design.Spacing.sm)
         }
+        .animation(Design.Motion.quickResponse, value: assignee.wrappedValue)
         .animation(Design.Motion.quickResponse, value: isSlashMode)
         .animation(Design.Motion.quickResponse, value: isStreaming)
         .animation(Design.Motion.quickResponse, value: canSend)
@@ -261,16 +284,70 @@ struct ChatInputBar: View {
             .accessibilityLabel("Stop generating")
         } else if canSend {
             Button(action: handlePrimaryAction) {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 16, weight: .bold))
+                Image(systemName: assignedStyle == nil ? "arrow.up" : "person.fill.checkmark")
+                    .font(.system(size: assignedStyle == nil ? 16 : 14, weight: .bold))
                     .foregroundStyle(Design.Colors.background)
                     .frame(width: 36, height: 36)
-                    .background(Design.Brand.accent)
+                    .background(assignedStyle?.color ?? Design.Brand.accent)
                     .clipShape(Circle())
             }
-            .accessibilityLabel("Send message")
+            .accessibilityLabel(assignedStyle.map { "Assign to \($0.displayName)" } ?? "Send message")
             .transition(.scale.combined(with: .opacity))
         }
+    }
+
+    // MARK: - Assign to a role
+
+    private var assignMenu: some View {
+        Menu {
+            Section("Give this to…") {
+                ForEach(assignableRoles) { profile in
+                    let style = RoleStyle.forProfile(profile.name)
+                    Button {
+                        assignee.wrappedValue = profile.name
+                        isFocused.wrappedValue = true
+                    } label: {
+                        Label(style.displayName, systemImage: style.symbol)
+                    }
+                }
+            }
+            if assignee.wrappedValue != nil {
+                Button("Back to chat", systemImage: "bubble.left") { assignee.wrappedValue = nil }
+            }
+        } label: {
+            Image(systemName: assignedStyle?.symbol ?? "person.badge.plus")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(assignedStyle?.color ?? Design.Colors.secondaryForeground)
+                .frame(width: 36, height: 36)
+                .background(Design.Colors.surface)
+                .clipShape(Circle())
+        }
+        .accessibilityLabel("Assign to a team role")
+        .accessibilityIdentifier("chat.assign")
+    }
+
+    private func assignmentChip(_ style: RoleStyle) -> some View {
+        HStack(spacing: Design.Spacing.xxs) {
+            Image(systemName: "arrow.turn.down.right")
+                .font(.caption2.weight(.bold))
+            Text("New task for \(style.displayName)")
+                .font(.caption.weight(.semibold))
+            Button {
+                assignee.wrappedValue = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+            }
+            .accessibilityLabel("Cancel assignment")
+        }
+        .foregroundStyle(style.color)
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(style.color.opacity(0.14)))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.sm)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     // MARK: - Dictation
