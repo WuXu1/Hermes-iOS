@@ -1442,8 +1442,8 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile.Widgets;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes.Widgets;
 				PRODUCT_NAME = HermesMobileWidgets;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.2;
@@ -1532,7 +1532,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HermesMobile.app/HermesMobile";
@@ -1552,13 +1552,13 @@
 				DEVELOPMENT_TEAM = 99NS7KLF77;
 				ENABLE_DEBUG_DYLIB_SUPPORT = YES;
 				INFOPLIST_FILE = HermesMobile/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HermesMobile;
+				INFOPLIST_KEY_CFBundleDisplayName = Hermes;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes;
 				PRODUCT_NAME = HermesMobile;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1575,7 +1575,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes.uitests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = HermesMobile;
@@ -1595,8 +1595,8 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile.Widgets;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes.Widgets;
 				PRODUCT_NAME = HermesMobileWidgets;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.2;
@@ -1614,7 +1614,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes.uitests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = HermesMobile;
@@ -1631,13 +1631,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 99NS7KLF77;
 				INFOPLIST_FILE = HermesMobile/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HermesMobile;
+				INFOPLIST_KEY_CFBundleDisplayName = Hermes;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes;
 				PRODUCT_NAME = HermesMobile;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1654,7 +1654,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.hermesmobile.HermesMobile.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wuxusapps.hermes.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HermesMobile.app/HermesMobile";
