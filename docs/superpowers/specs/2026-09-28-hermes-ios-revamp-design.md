@@ -49,7 +49,7 @@ $HERMES_DASHBOARD_SESSION_TOKEN`. It is never exposed publicly.
      | Profiles | `GET /api/profiles`, `GET/PUT /api/profiles/{name}/soul`, `PUT /api/profiles/{name}/description` |
      | Kanban | `GET /api/plugins/kanban/board`, `GET /api/plugins/kanban/assignees`, `GET /api/plugins/kanban/stats`, `GET/PATCH/DELETE /api/plugins/kanban/tasks/{id}`, `POST /api/plugins/kanban/tasks`, `POST /api/plugins/kanban/tasks/{id}/comments`, `POST /api/plugins/kanban/tasks/{id}/reassign`, `GET /api/plugins/kanban/tasks/{id}/log`, `GET /api/plugins/kanban/tasks/{id}/attachments`, `GET /api/plugins/kanban/attachments/{id}`, `POST /api/plugins/kanban/links` |
      | Cron | `GET/POST /api/cron/jobs`, `GET/PUT/DELETE /api/cron/jobs/{id}`, `POST /api/cron/jobs/{id}/{pause,resume,trigger}`, `GET /api/cron/jobs/{id}/runs`, `GET /api/cron/blueprints`, `POST /api/cron/blueprints/instantiate` |
-     | Skills | `GET /api/skills`, `GET /api/skills/content`, `POST /api/skills/toggle` |
+     | Skills | `GET /api/skills`, `GET /api/skills/content`, `PUT /api/skills/toggle` |
 
    - Returns `{status, json}` for JSON responses. Non-JSON responses up to
      2 MB (such as attachments) return `{status, contentType, base64}`; larger
@@ -84,9 +84,10 @@ user message (trimmed to 60 characters) unless it has been renamed.
 This follows the existing pattern of a protocol, a Live implementation, a Mock
 implementation and an `@Observable` store:
 
-- `HermesWorkspaceServiceProtocol` with `LiveHermesWorkspaceService` (using
-  `RelayAPIClient`) and `MockHermesWorkspaceService`. The mock's fixtures are
-  built from real responses, and it is used when `UITEST_PAIRING_MODE=mock`.
+- A single `WorkspaceTransport` protocol with `LiveWorkspaceTransport` (the
+  relay, through `RelayAPIClient`, with token refresh) and
+  `MockWorkspaceTransport` (serves fixtures recorded from the live server; used
+  when `UITEST_PAIRING_MODE=mock`). A typed `HermesWorkspaceAPI` sits on top.
 - Stores: `TeamStore` (board, assignees, task detail, actions),
   `AutomationsStore` (jobs, runs, blueprints), `LibraryStore` (memory, skills,
   personas), `ConversationsStore` (history, new chat, switching).
