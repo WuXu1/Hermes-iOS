@@ -1,0 +1,8 @@
+*.ipa
+build/
+HermesMobile/
+HermesMobile.xcodeproj/
+HermesMobileTests/
+HermesMobileUITests/
+HermesMobileWidgets/
+docs/
