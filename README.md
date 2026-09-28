@@ -48,6 +48,7 @@ That's it — open the Team tab to meet your agents.
 
 - **Roles:** each folder in `deploy/railway/roles/` becomes a Hermes profile (`SOUL.md` persona + `description`). Add a folder and redeploy to add a role, or edit personas from the app.
 - **Model:** set `HERMES_PROVIDER`, `HERMES_MODEL` and `HERMES_BASE_URL` on `hermes-host`, plus that provider's API key.
+- **Images:** DeepSeek is text-only. Set `GEMINI_API_KEY` on `hermes-host` and Gemini Flash reads attached images for it (override with `HERMES_VISION_MODEL`).
 - **Voice mode** needs an OpenAI key: `railway ssh -s hermes-host -- hermes-mobile configure-realtime`.
 
 ## Limitations
