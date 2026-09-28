@@ -22,6 +22,8 @@ struct AppRootView: View {
                     .transition(.opacity)
             }
         }
+        // The design is dark-first; keep system chrome (titles, status bar, sheets) in step.
+        .preferredColorScheme(.dark)
         .animation(Design.Motion.standard, value: container.pairingStore.isPaired)
         .animation(Design.Motion.standard, value: container.pairingStore.needsPermissionsOnboarding)
         .animation(Design.Motion.gentle, value: shouldShowSplash)
