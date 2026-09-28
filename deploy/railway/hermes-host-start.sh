@@ -71,6 +71,9 @@ for path in [home / "config.yaml", *sorted(home.glob("profiles/*/config.yaml"))]
         model["base_url"] = base_url
     else:
         model.pop("base_url", None)
+    # Schedules and "today" follow the owner's zone, not the server's UTC.
+    if os.environ.get("HERMES_TIMEZONE"):
+        config["timezone"] = os.environ["HERMES_TIMEZONE"]
     with path.open("w", encoding="utf-8") as handle:
         yaml.dump(config, handle)
 
