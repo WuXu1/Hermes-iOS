@@ -11,12 +11,14 @@ import uuid
 logger = logging.getLogger("hermes.relay")
 
 import json
+from typing import Any
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from .apns import PushResult, create_apns_client
 from .config import Settings
@@ -103,7 +105,15 @@ from .services import (
 from .talk_mcp import register_talk_mcp_routes
 
 
-def success(data: dict) -> dict:
+class MemoryWriteBody(BaseModel):
+    content: str
+
+
+# Connector RPC errors are "<code>: <message>" strings; map codes to HTTP statuses.
+RPC_ERROR_STATUS = {"forbidden": 403, "unavailable": 503, "too_large": 413, "invalid": 400}
+
+
+def success(data: Any) -> dict:
     return {
         "data": data,
         "meta": {
@@ -113,7 +123,7 @@ def success(data: dict) -> dict:
     }
 
 
-def success_response(data: dict, *, status_code: int = status.HTTP_200_OK) -> JSONResponse:
+def success_response(data: Any, *, status_code: int = status.HTTP_200_OK) -> JSONResponse:
     return JSONResponse(status_code=status_code, content=jsonable_encoder(success(data)))
 
 
@@ -377,6 +387,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except asyncio.TimeoutError as error:
             app.state.connector_rpc_waiters.pop(request_id, None)
             raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Hermes host did not respond in time.") from error
+
+    app.state.connector_rpc = send_connector_rpc
+
+    async def call_connector(user_id: str, method: str, params: dict, timeout_seconds: float = 30.0) -> Any:
+        try:
+            return await app.state.connector_rpc(
+                user_id, method=method, params=params, timeout_seconds=timeout_seconds
+            )
+        except HTTPException:
+            raise
+        except RuntimeError as error:
+            message = str(error)
+            code = message.split(":", 1)[0].strip()
+            raise HTTPException(status_code=RPC_ERROR_STATUS.get(code, 502), detail=message) from error
 
     async def forward_sensor_payload(
         *,
@@ -877,6 +901,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> dict:
         host = current_hermes_host_for_user(db, user_id=auth.user.id)
         return success({"host": serialize_hermes_host(db, host=host, settings=request_settings)})
+
+    @app.api_route("/v1/hermes/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+    async def hermes_api_proxy(
+        path: str,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> JSONResponse:
+        """Forward an allowlisted Hermes dashboard API call to the paired host's connector."""
+        raw_body = await request.body()
+        result = await call_connector(
+            auth.user.id,
+            "hermes.api",
+            {
+                "method": request.method,
+                "path": f"/api/{path}",
+                "query": dict(request.query_params),
+                "body": json.loads(raw_body) if raw_body else None,
+            },
+        )
+        status_code = int(result.get("status") or 502)
+        if "base64" in result:
+            payload: Any = {"contentType": result.get("contentType"), "base64": result["base64"]}
+        else:
+            payload = result.get("json")
+        if 200 <= status_code < 300:
+            return success_response(payload, status_code=status_code)
+        detail = payload.get("detail") if isinstance(payload, dict) else None
+        if not isinstance(detail, str):
+            detail = f"Hermes returned {status_code}."
+        return JSONResponse(status_code=status_code, content={"detail": detail})
+
+    @app.get("/v1/hermes/memory")
+    async def hermes_memory(auth: AuthContext = Depends(get_auth_context)) -> dict:
+        return success(await call_connector(auth.user.id, "memory.read", {}))
+
+    @app.put("/v1/hermes/memory/{kind}")
+    async def hermes_memory_write(
+        kind: str,
+        body: MemoryWriteBody,
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> dict:
+        return success(
+            await call_connector(auth.user.id, "memory.write", {"kind": kind, "content": body.content})
+        )
 
     @app.get("/v1/commands")
     async def command_catalog(
