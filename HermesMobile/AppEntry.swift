@@ -72,6 +72,11 @@ struct HermesMobileApp: App {
                 .environment(container.permissionsStore)
                 .environment(container.settingsStore)
                 .environment(container.talkStore)
+                .environment(container.teamStore)
+                .environment(container.automationsStore)
+                .environment(container.libraryStore)
+                .environment(container.conversationsStore)
+                .environment(container.toastCenter)
                 .task { await container.initialize() }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {

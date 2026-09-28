@@ -70,6 +70,22 @@ final class ChatStore {
         restartPendingPollingIfNeeded()
     }
 
+    /// Drops the cached conversation and loads whichever one the relay now marks
+    /// current (after switching or starting a chat from history).
+    func reloadConversation() async {
+        streamingTask?.cancel()
+        streamingTask = nil
+        streamingMessageID = nil
+        pollingTask?.cancel()
+        pollingTask = nil
+        chatLiveActivity.endActivity()
+        conversation = nil
+        lastTokenUsage = nil
+        pendingMessageSentAt = nil
+        persistence.clearConversationCache()
+        await loadConversation()
+    }
+
     func sendMessage(_ content: String, attachments: [PendingAttachment] = []) async {
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedContent.isEmpty || !attachments.isEmpty else { return }
