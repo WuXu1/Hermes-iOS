@@ -63,34 +63,40 @@ final class TabRouter {
     var selectedTab: AppTab = .chat
     var activeSheet: SheetDestination?
     var isVoiceOverlayPresented = false
-    private var paths: [AppTab: [Route]] = [:]
+    private var paths: [AppTab: NavigationPath] = [:]
 
-    func path(for tab: AppTab? = nil) -> [Route] {
-        paths[tab ?? selectedTab] ?? []
-    }
-
-    func pathBinding(for tab: AppTab) -> Binding<[Route]> {
+    func pathBinding(for tab: AppTab) -> Binding<NavigationPath> {
         Binding(
-            get: { self.paths[tab] ?? [] },
+            get: { self.paths[tab] ?? NavigationPath() },
             set: { self.paths[tab] = $0 }
         )
     }
 
     /// The selected tab's path (kept for callers from before tabs existed).
-    func pathBinding() -> Binding<[Route]> {
+    func pathBinding() -> Binding<NavigationPath> {
         pathBinding(for: selectedTab)
     }
 
-    func binding(for tab: AppTab) -> Binding<[Route]> {
-        pathBinding(for: tab)
+    func navigate(to route: Route, in tab: AppTab? = nil) {
+        push(route, in: tab)
     }
 
-    func navigate(to route: Route, in tab: AppTab? = nil) {
-        paths[tab ?? selectedTab, default: []].append(route)
+    /// Pushes any navigable value (a task, a job…) onto a tab's stack.
+    func push(_ value: some Hashable, in tab: AppTab? = nil) {
+        paths[tab ?? selectedTab, default: NavigationPath()].append(value)
+    }
+
+    /// Switches tab and shows `value` on top of that tab's root.
+    func show(_ value: some Hashable, in tab: AppTab) {
+        activeSheet = nil
+        selectedTab = tab
+        var path = NavigationPath()
+        path.append(value)
+        paths[tab] = path
     }
 
     func popToRoot(for tab: AppTab? = nil) {
-        paths[tab ?? selectedTab] = []
+        paths[tab ?? selectedTab] = NavigationPath()
     }
 
     func resetAll() {

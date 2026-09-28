@@ -214,15 +214,17 @@ final class MockWorkspaceTransport: WorkspaceTransport {
         guard let task = board.allTasks.first(where: { $0.id == id }) else {
             throw WorkspaceError.notFound("task \(id) not found")
         }
-        var detail: KanbanTaskDetail = (try? fixture("task_detail")) ?? KanbanTaskDetail(task: task)
-        if detail.task.id != id {
-            detail = KanbanTaskDetail(task: task, events: detail.events.prefix(1).map { event in
-                var copy = event
-                copy.createdAtUnix = task.createdAtUnix
-                return copy
-            })
-        } else {
+        var detail: KanbanTaskDetail
+        if let recorded: KanbanTaskDetail = try? fixture("task_detail"), recorded.task.id == id {
+            detail = recorded
             detail.task = task
+        } else {
+            var payload: [String: JSONValue] = ["status": .string(task.status.rawValue)]
+            if let assignee = task.assignee { payload["assignee"] = .string(assignee) }
+            detail = KanbanTaskDetail(
+                task: task,
+                events: [KanbanEvent(id: 1, kind: "created", payload: payload, createdAtUnix: task.createdAtUnix)]
+            )
         }
         detail.comments += comments[id] ?? []
         return detail
