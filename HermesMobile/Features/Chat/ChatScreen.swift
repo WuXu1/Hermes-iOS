@@ -7,6 +7,9 @@ struct ChatScreen: View {
     @Environment(AppSessionStore.self) private var sessionStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
+    @Environment(TeamStore.self) private var teamStore
+    @Environment(ConversationsStore.self) private var conversationsStore
+    @Environment(ToastCenter.self) private var toasts
 
     @State private var messageText = ""
     @State private var pendingAttachments: [PendingAttachment] = []
@@ -16,18 +19,25 @@ struct ChatScreen: View {
     @FocusState private var isComposerFocused: Bool
 
     @State private var showAttachmentPicker = false
+    @State private var assignee: String?
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     var body: some View {
         ZStack {
-            Design.Colors.background
-                .ignoresSafeArea()
+            CanvasBackground(glowOpacity: 0.08)
 
             VStack(spacing: 0) {
                 if pairingStore.isPaired, hostStore.connectionState != .online {
                     connectionBanner
                 }
-                messageList
+                if isEmptyConversation {
+                    ChatEmptyState { template in
+                        messageText = template
+                        isComposerFocused = true
+                    }
+                } else {
+                    messageList
+                }
                 ChatInputBar(
                     text: $messageText,
                     pendingAttachments: $pendingAttachments,
@@ -36,17 +46,19 @@ struct ChatScreen: View {
                     onSend: sendMessage,
                     onStop: { chatStore.cancelStreaming() },
                     onAttach: { showAttachmentPicker = true },
-                    onSlashCommand: handleSlashCommand
+                    onSlashCommand: handleSlashCommand,
+                    assignee: $assignee,
+                    assignableRoles: teamStore.assignableRoles
                 )
             }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
-        .toolbarBackground(.hidden, for: .navigationBar)
         .task {
             chatStore.setPollingEnabled(true)
             await hostStore.refresh()
             await chatStore.loadConversationIfNeeded()
+            await conversationsStore.refresh()
         }
         .task {
             while !Task.isCancelled {
@@ -100,11 +112,68 @@ struct ChatScreen: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            modelStatusChip
+            Button {
+                router.presentSheet(.settings)
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Design.Brand.accent)
+            }
+            .accessibilityLabel("Open settings")
+        }
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 1) {
+                Button {
+                    router.presentSheet(.history)
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(conversationTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                    .frame(maxWidth: 220)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(conversationTitle). Chat history")
+                .accessibilityIdentifier("chat.history")
+                modelStatusChip
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
-                router.presentSheet(.settings)
+            Button(action: startNewChat) {
+                Image(systemName: "square.and.pencil")
+            }
+            .accessibilityLabel("New chat")
+            .accessibilityIdentifier("chat.new")
+        }
+    }
+
+    private var conversationTitle: String {
+        let title = conversationsStore.current?.title ?? chatStore.conversation?.title ?? "Hermes"
+        return title.isEmpty ? "Hermes" : title
+    }
+
+    private var isEmptyConversation: Bool {
+        !chatStore.isLoading
+            && chatStore.pendingMessageSentAt == nil
+            && (chatStore.conversation?.messages.isEmpty ?? false)
+    }
+
+    private func startNewChat() {
+        assignee = nil
+        guard !isEmptyConversation else {
+            isComposerFocused = true
+            return
+        }
+        Task {
+            do {
+                try await conversationsStore.startNew()
+            } catch {
+                toasts.showError(error.localizedDescription)
             }
         }
     }
@@ -140,7 +209,7 @@ struct ChatScreen: View {
             HStack(spacing: 6) {
                 Circle()
                     .fill(connectionIndicatorColor)
-                    .frame(width: 6, height: 6)
+                    .frame(width: 5, height: 5)
 
                 if let model = displayedModelName {
                     ViewThatFits(in: .horizontal) {
@@ -151,8 +220,8 @@ struct ChatScreen: View {
 
                 contextRing(progress: contextProgress)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
             .fixedSize(horizontal: true, vertical: false)
         }
         .buttonStyle(.plain)
@@ -165,8 +234,8 @@ struct ChatScreen: View {
 
     private func chipModelText(_ model: String) -> some View {
         Text(model)
-            .font(.system(size: 12, weight: .medium, design: .monospaced))
-            .foregroundStyle(Design.Colors.foreground)
+            .font(.system(size: 10, weight: .medium, design: .monospaced))
+            .foregroundStyle(Design.Colors.textTertiary)
             .lineLimit(1)
             .truncationMode(.tail)
             .minimumScaleFactor(0.8)
@@ -176,13 +245,13 @@ struct ChatScreen: View {
     private func contextRing(progress: Double) -> some View {
         ZStack {
             Circle()
-                .stroke(Design.Colors.divider, lineWidth: 2.5)
+                .stroke(Design.Colors.divider, lineWidth: 2)
             Circle()
                 .trim(from: 0, to: max(progress, 0.001))
-                .stroke(contextColor(progress), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .stroke(contextColor(progress), style: StrokeStyle(lineWidth: 2, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
-        .frame(width: 16, height: 16)
+        .frame(width: 10, height: 10)
     }
 
     // MARK: - Popover: Context Window X of Y (%)
@@ -360,6 +429,7 @@ struct ChatScreen: View {
                 .padding(.vertical, Design.Spacing.md)
             }
             .scrollDismissesKeyboard(.interactively)
+            .scrollEdgeEffectStyle(.hard, for: .top)
             .redacted(reason: chatStore.isLoading ? .placeholder : [])
             .onTapGesture {
                 isComposerFocused = false
@@ -392,10 +462,9 @@ struct ChatScreen: View {
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
-        .background(Design.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+        .cardSurface()
         .padding(.horizontal, Design.Spacing.md)
-        .padding(.top, Design.Spacing.md)
+        .padding(.top, Design.Spacing.sm)
     }
 
     private var connectionBannerIcon: String {
@@ -461,6 +530,11 @@ struct ChatScreen: View {
         let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         let attachments = pendingAttachments
         guard !content.isEmpty || !attachments.isEmpty else { return }
+
+        if let role = assignee {
+            assignTask(content, to: role)
+            return
+        }
         messageText = ""
         pendingAttachments = []
 
@@ -475,6 +549,35 @@ struct ChatScreen: View {
                 await chatStore.sendMessage(content, attachments: attachments)
             }
             scrollToBottom()
+        }
+    }
+
+    /// Sends the composer text to a team role as a kanban task.
+    private func assignTask(_ content: String, to role: String) {
+        let firstLine = content.split(whereSeparator: \.isNewline).first.map(String.init) ?? content
+        let title = firstLine.count > 80 ? String(firstLine.prefix(79)) + "…" : firstLine
+        let draft = KanbanTaskDraft(title: title, body: content, assignee: role)
+        messageText = ""
+        assignee = nil
+        if settingsStore.settings.hapticFeedbackEnabled {
+            HapticEngine.messageSent()
+        }
+        Task {
+            do {
+                let task = try await teamStore.create(draft, reviewAfter: false)
+                let router = router
+                toasts.show(
+                    "Assigned to \(RoleStyle.forProfile(role).displayName)",
+                    systemImage: "person.badge.plus",
+                    actionTitle: "View"
+                ) {
+                    router.show(TaskRoute(id: task.id), in: .team)
+                }
+            } catch {
+                messageText = content
+                assignee = role
+                toasts.showError(error.localizedDescription)
+            }
         }
     }
 
@@ -508,7 +611,10 @@ struct ChatScreen: View {
 
         // Local commands handled by the iOS app directly.
         switch command.name {
-        case "new", "reset", "clear":
+        case "new":
+            startNewChat()
+
+        case "reset", "clear":
             showClearConfirmation = true
 
         case "history":
@@ -572,6 +678,7 @@ struct ChatScreen: View {
         do {
             try await chatStore.clearConversation()
             showStatusCard = false
+            await conversationsStore.refresh()
         } catch {
             // Conversation unchanged on failure — user can retry
         }

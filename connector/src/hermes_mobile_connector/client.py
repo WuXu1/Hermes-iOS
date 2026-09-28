@@ -174,14 +174,17 @@ def _cached_context_window(hermes_home: Path, model_name: str, base_url: str | N
     return None
 from .git_diff import capture_diff, capture_snapshot
 from .hermes_api_executor import HermesAPIExecutor
+from .hermes_api_proxy import HermesApiConfig, call_hermes_api
 from .hermes_runner import ConnectorHermesSettings, HermesCLIExecutor
 from .mcp_registration import (
     inspect_native_mcp_registration,
     native_mcp_readiness_message,
     register_native_mcp_server,
+    resolve_hermes_home,
     validate_native_mcp_tools,
     validate_native_mcp_server,
 )
+from .memory_files import read_memory, write_memory
 from .sensor_store import HealthSample, LocationReading, SensorStore
 from .runtime_adapter import HermesAPIRuntimeAdapter, HermesRuntimeAdapter, HostRuntimeAdapter, RuntimeConversationMessage
 from .service_management import build_service_manager
@@ -920,6 +923,14 @@ class HermesMobileConnector:
                 result = await self._rpc_talk_delegate(params)
             elif method == "commands.catalog":
                 result = self._rpc_commands_catalog()
+            elif method == "hermes.api":
+                result = await call_hermes_api(params, config=HermesApiConfig.from_env())
+            elif method == "memory.read":
+                result = read_memory(resolve_hermes_home())
+            elif method == "memory.write":
+                result = write_memory(
+                    resolve_hermes_home(), str(params.get("kind") or ""), str(params.get("content") or "")
+                )
             else:
                 raise RuntimeError(f"Unsupported RPC method: {method}")
             return {

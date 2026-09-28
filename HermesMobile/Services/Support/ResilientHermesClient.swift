@@ -57,7 +57,13 @@ final class ResilientHermesClient: HermesClientProtocol {
     }
 
     func clearConversation() async throws -> Conversation {
-        try await primary.clearConversation()
+        do {
+            return try await primary.clearConversation()
+        } catch {
+            // Mirror loadConversation: demo/mock sessions clear the fallback conversation.
+            guard allowsFallback() else { throw error }
+            return try await fallback.clearConversation()
+        }
     }
 
     func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {

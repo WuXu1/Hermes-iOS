@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlunparse
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from .config import Settings
@@ -925,16 +925,36 @@ def default_action_titles(kind: str) -> tuple[str | None, str | None]:
     return None, "Dismiss"
 
 
-def get_or_create_current_conversation(db: Session, *, user_id: str) -> Conversation:
-    conversation = db.scalar(
-        select(Conversation).where(
-            Conversation.user_id == user_id,
-            Conversation.is_archived.is_(False),
-        )
+DEFAULT_CONVERSATION_TITLE = "Hermes"
+NEW_CONVERSATION_TITLE = "New chat"
+CONVERSATION_TITLE_LIMIT = 60
+CONVERSATION_PREVIEW_LIMIT = 100
+
+
+def _active_conversations(user_id: str):
+    return select(Conversation).where(
+        Conversation.user_id == user_id,
+        Conversation.is_archived.is_(False),
     )
 
+
+def _current_conversation(db: Session, *, user_id: str) -> Conversation | None:
+    """The non-archived conversation the user activated most recently."""
+    return db.scalar(
+        _active_conversations(user_id)
+        .order_by(
+            func.coalesce(Conversation.activated_at, Conversation.created_at).desc(),
+            Conversation.created_at.desc(),
+        )
+        .limit(1)
+    )
+
+
+def get_or_create_current_conversation(db: Session, *, user_id: str) -> Conversation:
+    conversation = _current_conversation(db, user_id=user_id)
+
     if conversation is None:
-        conversation = Conversation(user_id=user_id, title="Hermes")
+        conversation = Conversation(user_id=user_id, title=DEFAULT_CONVERSATION_TITLE)
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
@@ -943,22 +963,95 @@ def get_or_create_current_conversation(db: Session, *, user_id: str) -> Conversa
 
 
 def archive_current_conversation(db: Session, *, user_id: str) -> Conversation | None:
-    conversation = db.scalar(
-        select(Conversation).where(
-            Conversation.user_id == user_id,
-            Conversation.is_archived.is_(False),
-        )
-    )
+    conversation = _current_conversation(db, user_id=user_id)
 
     if conversation is None:
         return None
 
+    return archive_conversation(db, conversation=conversation)
+
+
+def list_conversations(db: Session, *, user_id: str) -> list[Conversation]:
+    """Non-archived conversations, most recent activity first."""
+    return list(
+        db.scalars(
+            _active_conversations(user_id).order_by(
+                func.coalesce(
+                    Conversation.last_message_at, Conversation.activated_at, Conversation.created_at
+                ).desc(),
+                Conversation.created_at.desc(),
+            )
+        )
+    )
+
+
+def get_user_conversation(db: Session, *, user_id: str, conversation_id: str) -> Conversation | None:
+    return db.scalar(_active_conversations(user_id).where(Conversation.id == conversation_id))
+
+
+def create_conversation(db: Session, *, user_id: str) -> Conversation:
+    conversation = Conversation(user_id=user_id, title=NEW_CONVERSATION_TITLE, activated_at=utcnow())
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+
+def activate_conversation(db: Session, *, conversation: Conversation) -> Conversation:
+    conversation.activated_at = utcnow()
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+
+def rename_conversation(db: Session, *, conversation: Conversation, title: str) -> Conversation:
+    conversation.title = title
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+
+def archive_conversation(db: Session, *, conversation: Conversation) -> Conversation:
     conversation.is_archived = True
     conversation.hermes_session_id = None
     conversation.updated_at = utcnow()
     db.commit()
     db.refresh(conversation)
     return conversation
+
+
+def conversation_title_from_text(text: str) -> str | None:
+    """A short title from a message: whitespace collapsed, at most 60 characters."""
+    collapsed = " ".join(text.split())
+    if not collapsed:
+        return None
+    if len(collapsed) <= CONVERSATION_TITLE_LIMIT:
+        return collapsed
+    return collapsed[: CONVERSATION_TITLE_LIMIT - 1].rstrip() + "…"
+
+
+def last_conversation_message(db: Session, *, conversation_id: str) -> Message | None:
+    return db.scalar(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.desc())
+        .limit(1)
+    )
+
+
+def summarize_conversation(
+    conversation: Conversation, *, last_message: Message | None, is_current: bool
+) -> dict:
+    preview = " ".join((last_message.text if last_message else "").split())
+    if len(preview) > CONVERSATION_PREVIEW_LIMIT:
+        preview = preview[: CONVERSATION_PREVIEW_LIMIT - 1].rstrip() + "…"
+    return {
+        "id": conversation.id,
+        "title": conversation.title,
+        "preview": preview,
+        "lastMessageAt": conversation.last_message_at or conversation.created_at,
+        "isCurrent": is_current,
+    }
 
 
 def list_conversation_messages(db: Session, *, conversation_id: str) -> list[Message]:
@@ -1026,6 +1119,15 @@ def append_message(
     )
     if created_at_override is not None:
         message.created_at = created_at_override
+    if (
+        role == "user"
+        and conversation.title in {DEFAULT_CONVERSATION_TITLE, NEW_CONVERSATION_TITLE}
+        and db.scalar(
+            select(Message.id).where(Message.conversation_id == conversation.id, Message.role == "user").limit(1)
+        )
+        is None
+    ):
+        conversation.title = conversation_title_from_text(text) or conversation.title
     conversation.last_message_at = utcnow()
     conversation.updated_at = utcnow()
     db.add(message)

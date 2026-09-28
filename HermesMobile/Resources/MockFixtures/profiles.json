@@ -1,0 +1,39 @@
+{
+ "profiles": [
+  {
+   "name": "default",
+   "is_default": true,
+   "model": "deepseek-flash",
+   "provider": "deepseek",
+   "description": ""
+  },
+  {
+   "name": "coder",
+   "is_default": false,
+   "model": "deepseek-flash",
+   "provider": "deepseek",
+   "description": "Writes, runs and fixes code, scripts and automations, verifying they work before handing off for review."
+  },
+  {
+   "name": "operator",
+   "is_default": false,
+   "model": "deepseek-flash",
+   "provider": "deepseek",
+   "description": "Hands-on web tasks in a real browser: navigating sites, looking things up, filling forms and account chores, stopping for approval before anything irreversible."
+  },
+  {
+   "name": "researcher",
+   "is_default": false,
+   "model": "deepseek-flash",
+   "provider": "deepseek",
+   "description": "In-depth web research: finds, compares and verifies information from primary sources and delivers a cited markdown report."
+  },
+  {
+   "name": "reviewer",
+   "is_default": false,
+   "model": "deepseek-flash",
+   "provider": "deepseek",
+   "description": "Reviews and verifies other profiles' work (code, research, web actions) and approves it or requests specific changes."
+  }
+ ]
+}

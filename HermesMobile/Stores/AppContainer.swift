@@ -15,6 +15,12 @@ final class AppContainer {
     let permissionsStore: PermissionsStore
     let settingsStore: SettingsStore
     let talkStore: TalkStore
+    let teamStore: TeamStore
+    let automationsStore: AutomationsStore
+    let libraryStore: LibraryStore
+    let conversationsStore: ConversationsStore
+    let toastCenter = ToastCenter()
+    let workspaceAPI: HermesWorkspaceAPI
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
     private let notificationService: (any NotificationServiceProtocol)?
@@ -33,6 +39,7 @@ final class AppContainer {
         permissionsStore: PermissionsStore,
         settingsStore: SettingsStore,
         talkStore: TalkStore,
+        workspaceTransport: (any WorkspaceTransport)? = nil,
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
         notificationService: (any NotificationServiceProtocol)? = nil
@@ -45,6 +52,15 @@ final class AppContainer {
         self.permissionsStore = permissionsStore
         self.settingsStore = settingsStore
         self.talkStore = talkStore
+        let workspaceAPI = HermesWorkspaceAPI(transport: workspaceTransport ?? MockWorkspaceTransport(mode: .offline))
+        self.workspaceAPI = workspaceAPI
+        teamStore = TeamStore(api: workspaceAPI)
+        automationsStore = AutomationsStore(api: workspaceAPI)
+        libraryStore = LibraryStore(api: workspaceAPI)
+        conversationsStore = ConversationsStore(api: workspaceAPI)
+        conversationsStore.onConversationSwitched = { [weak chatStore] in
+            await chatStore?.reloadConversation()
+        }
         self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
         self.notificationService = notificationService
@@ -211,6 +227,16 @@ final class AppContainer {
             ),
             settingsStore: settingsStore,
             talkStore: TalkStore(voiceService: voiceService),
+            workspaceTransport: usesMockPairingService
+                ? MockWorkspaceTransport()
+                : LiveWorkspaceTransport(
+                    apiClient: apiClient,
+                    accessTokenProvider: { await sessionStore.currentAccessToken() },
+                    accessTokenRefresher: {
+                        await sessionStore.refreshAccessTokenIfNeeded()
+                        return await sessionStore.currentAccessToken()
+                    }
+                ),
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
             notificationService: notificationService
@@ -611,6 +637,10 @@ final class AppContainer {
         chatStore.reset()
         inboxStore.reset()
         hostStore.reset()
+        teamStore.reset()
+        automationsStore.reset()
+        libraryStore.reset()
+        conversationsStore.reset()
         lastKnownHostOnline = false
         lastCommandCatalogRefreshAt = nil
         LiveActivityService.endAllActivities()

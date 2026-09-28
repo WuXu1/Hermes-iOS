@@ -1,0 +1,104 @@
+{
+ "task": {
+  "id": "t_rev3310",
+  "title": "Clean up bank export CSV",
+  "body": "Goal: Clean up bank export CSV.",
+  "assignee": "coder",
+  "status": "review",
+  "priority": 0,
+  "created_by": "default",
+  "created_at": 1790606800,
+  "started_at": 1790607000,
+  "completed_at": null,
+  "workspace_kind": "scratch",
+  "result": null,
+  "consecutive_failures": 0,
+  "worker_pid": null,
+  "last_failure_error": null,
+  "session_id": null,
+  "block_kind": null,
+  "latest_summary": "Wrote clean_bank_csv.py: normalizes dates, merges pending rows and flags duplicates. Tested on the sample export (412 rows, 3 duplicates flagged)."
+ },
+ "comments": [
+  {
+   "id": 1,
+   "task_id": "t_rev3310",
+   "author": "coder",
+   "body": "Ready for review. The script is attached with a sample of the cleaned output.",
+   "created_at": 1790607900
+  }
+ ],
+ "events": [
+  {
+   "id": 11,
+   "task_id": "t_rev3310",
+   "kind": "created",
+   "payload": {
+    "assignee": "coder",
+    "status": "ready"
+   },
+   "created_at": 1790606800,
+   "run_id": null
+  },
+  {
+   "id": 12,
+   "task_id": "t_rev3310",
+   "kind": "claimed",
+   "payload": {
+    "run_id": 1
+   },
+   "created_at": 1790607000,
+   "run_id": 1
+  },
+  {
+   "id": 13,
+   "task_id": "t_rev3310",
+   "kind": "review_requested",
+   "payload": {
+    "summary": "Ready for review"
+   },
+   "created_at": 1790607900,
+   "run_id": 1
+  }
+ ],
+ "attachments": [
+  {
+   "id": 3,
+   "task_id": "t_rev3310",
+   "filename": "clean_bank_csv.py",
+   "content_type": null,
+   "size": 2140,
+   "uploaded_by": "coder",
+   "created_at": 1790607850
+  },
+  {
+   "id": 4,
+   "task_id": "t_rev3310",
+   "filename": "sample-output.md",
+   "content_type": "text/markdown",
+   "size": 812,
+   "uploaded_by": "coder",
+   "created_at": 1790607860
+  }
+ ],
+ "links": {
+  "parents": [],
+  "children": []
+ },
+ "link_tasks": [],
+ "child_results": [],
+ "runs": [
+  {
+   "id": 1,
+   "task_id": "t_rev3310",
+   "profile": "coder",
+   "status": "done",
+   "started_at": 1790607000,
+   "ended_at": 1790607900,
+   "outcome": "review_requested",
+   "summary": "Ready for review",
+   "metadata": {},
+   "error": null
+  }
+ ]
+}

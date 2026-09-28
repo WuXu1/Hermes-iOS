@@ -12,11 +12,13 @@ struct SettingsScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Colors.background
-                .ignoresSafeArea()
+            CanvasBackground(glowOpacity: 0.06)
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
+                    if pairingStore.isPaired {
+                        HermesOverviewSection()
+                    }
                     connectionSection
                     relaySection
                     if settingsStore.availableEnvironments.count > 1 {
@@ -40,6 +42,7 @@ struct SettingsScreen: View {
                         .font(.system(size: Design.Size.iconSmall, weight: .semibold))
                         .foregroundStyle(Design.Colors.foreground)
                 }
+                .accessibilityLabel("Close")
             }
         }
         .task {
