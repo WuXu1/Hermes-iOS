@@ -154,6 +154,7 @@
 		B98D494AAC7A509EB8889387 /* NewTaskSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B147368CB6F1A155EC0626 /* NewTaskSheet.swift */; };
 		BA964A83B32EA708A978F765 /* TaskCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95B4BD3B4A0FE9448BA862E /* TaskCardView.swift */; };
 		BD831385635A70421E230DFF /* SyncCoordinatorProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3638A04F9C4EF799250E210 /* SyncCoordinatorProtocol.swift */; };
+		BE0F455FB1AE95DA8518C7C1 /* JobDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 226F458C905498F453C45FD8 /* JobDetailScreen.swift */; };
 		BEB46DCA8E625E9631C185BC /* ResilientHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539E2CFF8AC26909D0C7EFC0 /* ResilientHermesClient.swift */; };
 		BFEAA06886FD3339C0BBFD92 /* MockHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D6BC0C9C8D1F32E5A124FA /* MockHermesClient.swift */; };
 		C0CD27ECCF44C6C7A59318B8 /* StatusCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E180BD123CA9D0BF9ED53F1D /* StatusCardView.swift */; };
@@ -280,6 +281,7 @@
 		1FDF4F6FA667A90EA99F7F73 /* cron_runs.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = cron_runs.json; path = cron_runs.json; sourceTree = "<group>"; };
 		20748383C1082575AD5C086C /* LiveSpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSpeechService.swift; sourceTree = "<group>"; };
 		21434A21931CEB837437D9A1 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EmptyStateView.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		226F458C905498F453C45FD8 /* JobDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = JobDetailScreen.swift; path = JobDetailScreen.swift; sourceTree = "<group>"; };
 		25563E39F08D0F19F538ADD8 /* VoiceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceState.swift; sourceTree = "<group>"; };
 		29304152637485961A2B3C4D /* HermesMobileWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HermesMobileWidgets.entitlements; sourceTree = "<group>"; };
 		2A16440BD7ECCFF064BD6232 /* TalkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkStore.swift; sourceTree = "<group>"; };
@@ -770,6 +772,7 @@
 			children = (
 				70724DFDB290FD81A3A76061 /* AutomationsScreen.swift */,
 				713147488A92076FC787F484 /* NewAutomationSheet.swift */,
+				226F458C905498F453C45FD8 /* JobDetailScreen.swift */,
 			);
 			name = Automations;
 			path = Automations;
@@ -1329,6 +1332,7 @@
 				F1C8465D9765DFE675AEDC48 /* TaskLogScreen.swift in Sources */,
 				A3464C388B48C9F6F33AC858 /* RelativeTime.swift in Sources */,
 				064E41B585922DC6DDFBD367 /* ChatEmptyState.swift in Sources */,
+				BE0F455FB1AE95DA8518C7C1 /* JobDetailScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -84,8 +84,8 @@ struct MainTabView: View {
             HistorySheet()
         case .newTask(let prefill):
             NewTaskSheet(prefill: prefill)
-        case .newAutomation:
-            NewAutomationSheet()
+        case .newAutomation(let blueprintKey):
+            NewAutomationSheet(initialBlueprintKey: blueprintKey)
         }
     }
 }

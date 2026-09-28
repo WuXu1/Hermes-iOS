@@ -14,7 +14,7 @@ enum SheetDestination: Identifiable {
     case settings
     case history
     case newTask(prefill: KanbanTaskDraft?)
-    case newAutomation
+    case newAutomation(blueprintKey: String?)
 
     var id: String {
         switch self {

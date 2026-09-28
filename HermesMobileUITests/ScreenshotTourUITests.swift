@@ -44,7 +44,12 @@ final class ScreenshotTourUITests: XCTestCase {
                 if openFirst(identifierPrefix: "team.task.") { capture("03-task-detail"); goBack() }
                 if tapIfExists(app.buttons["team.newTask"]) { capture("04-new-task"); dismissSheet() }
             case "Automations":
-                if tapIfExists(app.buttons["automations.new"]) { capture("06-new-automation"); dismissSheet() }
+                if openFirst(identifierPrefix: "automations.job.") { capture("05b-job-detail"); goBack() }
+                if tapIfExists(app.buttons["automations.new"]) {
+                    capture("06-new-automation")
+                    if tapIfExists(app.buttons["Custom"]) { capture("06b-new-automation-custom") }
+                    dismissSheet()
+                }
             case "Library":
                 if tapIfExists(app.buttons["Skills"]) { sleep(1); capture("08-library-skills") }
             default:
