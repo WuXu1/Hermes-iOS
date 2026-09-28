@@ -127,10 +127,15 @@ final class ScreenshotTourUITests: XCTestCase {
     }
 
     private func dismissSheet() {
+        for label in ["Done", "Cancel", "Close"] {
+            let button = app.navigationBars.buttons[label].exists ? app.navigationBars.buttons[label] : app.buttons[label]
+            if button.exists, button.isHittable {
+                button.tap()
+                sleep(1)
+                return
+            }
+        }
         app.swipeDown(velocity: .fast)
         sleep(1)
-        if app.sheets.firstMatch.exists || app.otherElements["sheet"].exists {
-            app.swipeDown(velocity: .fast)
-        }
     }
 }
