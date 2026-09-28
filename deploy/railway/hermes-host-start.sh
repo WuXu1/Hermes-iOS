@@ -74,28 +74,22 @@ for path in [home / "config.yaml", *sorted(home.glob("profiles/*/config.yaml"))]
     # Schedules and "today" follow the owner's zone, not the server's UTC.
     if os.environ.get("HERMES_TIMEZONE"):
         config["timezone"] = os.environ["HERMES_TIMEZONE"]
-    # DeepSeek can't see images; with a Gemini key, image reading goes to Gemini.
-    # Every other side task keeps using the main model.
-    if os.environ.get("GEMINI_API_KEY"):
-        auxiliary = config.get("auxiliary")
-        if not isinstance(auxiliary, dict):
-            auxiliary = {}
-            config["auxiliary"] = auxiliary
-        vision = auxiliary.get("vision")
-        if not isinstance(vision, dict):
-            vision = {}
-            auxiliary["vision"] = vision
-        vision["provider"] = "gemini"
-        vision["model"] = os.environ.get("HERMES_VISION_MODEL") or "gemini-3.6-flash"
+    # DeepSeek flash reads images itself; drop the Gemini vision pin an earlier
+    # version of this script wrote. Gemini is only used to transcribe audio.
+    auxiliary = config.get("auxiliary")
+    if isinstance(auxiliary, dict) and isinstance(auxiliary.get("vision"), dict) \
+            and auxiliary["vision"].get("provider") == "gemini":
+        del auxiliary["vision"]
     with path.open("w", encoding="utf-8") as handle:
         yaml.dump(config, handle)
 
 # Workers spawned by the supervised gateway (kanban, cron) don't inherit the
 # container environment, so mirror provider keys into every profile's .env.
-keys = {name: os.environ[name] for name in ("DEEPSEEK_API_KEY", "GEMINI_API_KEY") if os.environ.get(name)}
+keys = {name: os.environ[name] for name in ("DEEPSEEK_API_KEY",) if os.environ.get(name)}
 for env_path in [home / ".env", *sorted(home.glob("profiles/*/.env"))]:
     lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
-    lines = [line for line in lines if line.split("=", 1)[0].strip() not in keys]
+    # GEMINI_API_KEY was mirrored by an earlier version; only the connector needs it.
+    lines = [line for line in lines if line.split("=", 1)[0].strip() not in {*keys, "GEMINI_API_KEY"}]
     lines += [f"{name}={value}" for name, value in keys.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     env_path.chmod(0o600)

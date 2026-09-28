@@ -13,6 +13,13 @@ COPY skills/hermes-ios /opt/hermes-mobile/skills/hermes-ios
 COPY deploy/railway/roles /opt/hermes-mobile/roles
 COPY --chmod=0755 deploy/railway/hermes-host-start.sh /opt/hermes-mobile/start.sh
 
+# Document reading: Hermes installs its converter on first use, but the agent
+# can't write to its venv at runtime, so bake it in. Poppler renders scanned
+# PDF pages to images for the main model to read.
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    uv pip install --python /opt/hermes/.venv/bin/python --no-cache firecrawl-anydoc==0.2.4
+
 RUN python3 -m venv /opt/hermes-mobile/.venv && \
     /opt/hermes-mobile/.venv/bin/python -m pip install --no-cache-dir /opt/hermes-mobile/connector && \
     /opt/hermes-mobile/.venv/bin/hermes-mobile --help >/dev/null

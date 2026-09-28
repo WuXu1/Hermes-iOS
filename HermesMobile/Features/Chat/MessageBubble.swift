@@ -238,7 +238,7 @@ struct MessageBubble: View {
                 .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
         } else {
             HStack(spacing: Design.Spacing.xxs) {
-                Image(systemName: "doc")
+                Image(systemName: PendingAttachment.symbolName(forMimeType: attachment.mimeType))
                     .font(.system(size: Design.Size.iconSmall))
                     .foregroundStyle(Design.Colors.secondaryForeground)
                 Text(attachment.fileName)

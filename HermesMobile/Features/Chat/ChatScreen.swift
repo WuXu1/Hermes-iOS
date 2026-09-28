@@ -589,8 +589,10 @@ struct ChatScreen: View {
                 pendingAttachments.append(attachment)
             }
         case .file(let url):
-            if let attachment = PendingAttachment.file(at: url) {
-                pendingAttachments.append(attachment)
+            do {
+                pendingAttachments.append(try PendingAttachment.file(at: url))
+            } catch {
+                toasts.showError(error.localizedDescription)
             }
         }
     }

@@ -4,7 +4,8 @@ import os
 @MainActor
 final class LiveHermesClient: HermesClientProtocol {
     private static let logger = Logger(subsystem: "com.wuxusapps.hermes", category: "LiveHermesClient")
-    private static let maxRequestBodyBytes = 1_000_000
+    /// Room for two full-size (5 MB) documents; the relay caps each attachment separately.
+    private static let maxRequestBodyBytes = 14_000_000
     private struct ConversationResponse: Decodable {
         let conversation: RelayConversation
     }
@@ -456,7 +457,7 @@ final class LiveHermesClient: HermesClientProtocol {
             let rawError = donePayload?.error ?? ""
             let text: String
             if rawError.contains("413") || rawError.lowercased().contains("too large") {
-                text = "The attachment was too large for Hermes to process. Try a smaller image."
+                text = "The attachments were too large to send. Try fewer or smaller files."
             } else if rawError.isEmpty {
                 text = "Hermes could not process this message."
             } else {
@@ -477,7 +478,7 @@ final class LiveHermesClient: HermesClientProtocol {
         let encoded = try RelayCoders.makeEncoder().encode(body)
         guard encoded.count <= Self.maxRequestBodyBytes else {
             throw RelayAPIClient.ClientError.requestFailed(
-                "The attachment was too large for Hermes to process. Try a smaller image."
+                "The attachments were too large to send. Try fewer or smaller files."
             )
         }
     }
@@ -491,7 +492,7 @@ final class LiveHermesClient: HermesClientProtocol {
         }
 
         if rawError.contains("413") || rawError.lowercased().contains("too large") {
-            return "The attachment was too large for Hermes to process. Try a smaller image."
+            return "The attachments were too large to send. Try fewer or smaller files."
         }
         if rawError.isEmpty {
             return "Hermes relay is unavailable right now."

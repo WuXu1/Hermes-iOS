@@ -7,7 +7,7 @@ A native iPhone app for your own [Hermes Agent](https://github.com/NousResearch/
 
 ## What you get
 
-- **Chat** — streaming replies, attachments, voice mode, slash commands, and full chat history (switch, rename, delete, search).
+- **Chat** — streaming replies, attachments (photos, PDFs, Office files, audio up to 5 MB), voice mode, slash commands, and full chat history (switch, rename, delete, search).
 - **Team** — a kanban team of Hermes profiles: a *chief of staff* you talk to, plus a **researcher**, **operator** (web tasks in a browser), **coder** and **reviewer** that pick up tasks in the background. See what's working, what's waiting on you, results and attachments; reply to unblock, approve or send back work, and edit each role's persona. Any chat message can be turned into a task for a role.
 - **Automations** — scheduled jobs from Hermes's templates (morning briefing, news digest, price watch…) or your own prompt and schedule. Run now, pause, and read each run's output.
 - **Library** — edit what Hermes remembers about you, and switch installed skills on or off.
@@ -48,7 +48,7 @@ That's it — open the Team tab to meet your agents.
 
 - **Roles:** each folder in `deploy/railway/roles/` becomes a Hermes profile (`SOUL.md` persona + `description`). Add a folder and redeploy to add a role, or edit personas from the app.
 - **Model:** set `HERMES_PROVIDER`, `HERMES_MODEL` and `HERMES_BASE_URL` on `hermes-host`, plus that provider's API key.
-- **Images:** DeepSeek is text-only. Set `GEMINI_API_KEY` on `hermes-host` and Gemini Flash reads attached images for it (override with `HERMES_VISION_MODEL`).
+- **Attachments:** the main model reads photos itself; PDFs and Office files are converted to text on the host. Audio needs a model that can listen: set a free `GEMINI_API_KEY` on `hermes-host` and the connector has Gemini Flash transcribe audio attachments into your message (override with `HERMES_TRANSCRIBE_MODEL`). Gemini is used for nothing else.
 - **Voice mode** needs an OpenAI key: `railway ssh -s hermes-host -- hermes-mobile configure-realtime`.
 
 ## Limitations

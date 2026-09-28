@@ -174,6 +174,7 @@ def _cached_context_window(hermes_home: Path, model_name: str, base_url: str | N
     return None
 from .git_diff import capture_diff, capture_snapshot
 from .hermes_api_executor import HermesAPIExecutor
+from .audio_transcription import TranscriptionConfig, TranscriptionError, transcribe_audio
 from .hermes_api_proxy import HermesApiConfig, call_hermes_api
 from .hermes_runner import ConnectorHermesSettings, HermesCLIExecutor
 from .mcp_registration import (
@@ -198,6 +199,10 @@ from .state import (
 )
 from .talk_support import DEFAULT_REALTIME_MODELS, DEFAULT_REALTIME_VOICE, build_voice_context_snapshot
 
+# Office and PDF files Hermes's read_file converts to text on the host.
+DOCUMENT_EXTENSIONS = frozenset({
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp", ".rtf", ".epub",
+})
 OPENAI_REALTIME_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 
 
@@ -240,6 +245,7 @@ class HermesMobileConnector:
         self._voice_delegate_sessions: dict[str, str] = {}
         self._health_cache: tuple[float, HostRuntimeAdapter | None] = (0.0, None)
         self._HEALTH_CACHE_TTL: float = 30.0
+        self.transcribe_audio = self._transcribe_with_gemini
 
     @property
     def sensor_store(self) -> SensorStore:
@@ -672,7 +678,7 @@ class HermesMobileConnector:
         # Do this BEFORE runtime selection so streaming still works for image jobs.
         attachments = job.get("attachments") or []
         if attachments:
-            attachment_context = self._build_cli_attachment_context(
+            attachment_context = await self._build_cli_attachment_context(
                 job_id=str(job["id"]),
                 attachments=attachments,
             )
@@ -795,7 +801,7 @@ class HermesMobileConnector:
                     )
                 attachments = job.get("attachments") or []
                 if attachments:
-                    attachment_context = self._build_cli_attachment_context(
+                    attachment_context = await self._build_cli_attachment_context(
                         job_id=str(job["id"]),
                         attachments=attachments,
                     )
@@ -837,7 +843,11 @@ class HermesMobileConnector:
                 return
             await websocket.send(json.dumps({"type": "heartbeat"}))
 
-    def _build_cli_attachment_context(self, *, job_id: str, attachments: list[dict]) -> str:
+    @staticmethod
+    async def _transcribe_with_gemini(data: bytes, mime_type: str) -> str:
+        return await transcribe_audio(data, mime_type, config=TranscriptionConfig.from_env())
+
+    async def _build_cli_attachment_context(self, *, job_id: str, attachments: list[dict]) -> str:
         attachment_root = self.state_store.state_dir / "attachment_staging" / job_id
         attachment_root.mkdir(parents=True, exist_ok=True)
 
@@ -862,6 +872,21 @@ class HermesMobileConnector:
             if mime_type.startswith("image/"):
                 lines.append(
                     f"- Image attachment available at {file_path}. If you need to inspect it, use vision_analyze with image_url: {file_path}"
+                )
+            elif mime_type.startswith("audio/"):
+                try:
+                    transcript = await self.transcribe_audio(raw_data, mime_type)
+                except TranscriptionError as exc:
+                    lines.append(
+                        f"- Audio attachment {filename} could not be transcribed: {exc}. "
+                        "Tell the user; you can't listen to it yourself."
+                    )
+                else:
+                    lines.append(f"- Audio attachment {filename}, transcribed:\n\"\"\"\n{transcript}\n\"\"\"")
+            elif self._is_document_attachment(filename):
+                lines.append(
+                    f"- Document attachment available at {file_path}. Read it with read_file, "
+                    "which converts PDF, Word, Excel and PowerPoint files to text."
                 )
             elif self._is_text_like_attachment(mime_type):
                 lines.append(
@@ -897,6 +922,10 @@ class HermesMobileConnector:
     def _sanitize_attachment_filename(filename: str) -> str:
         cleaned = re.sub(r'[^A-Za-z0-9._-]+', "_", filename).strip("._")
         return cleaned or "attachment"
+
+    @staticmethod
+    def _is_document_attachment(filename: str) -> bool:
+        return Path(filename).suffix.lower() in DOCUMENT_EXTENSIONS
 
     @staticmethod
     def _is_text_like_attachment(mime_type: str) -> bool:

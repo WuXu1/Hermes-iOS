@@ -17,11 +17,26 @@ struct PendingAttachment: Identifiable, Sendable {
         case file
     }
 
-    /// Maximum file size: 350 KB (before base64 encoding -> ~470KB base64).
-    /// The Hermes API server accepts a 1 MB request body for the whole message payload,
-    /// so individual attachments still need additional aggregate request-size validation.
+    /// Images are downscaled and recompressed to stay under this size.
     static let maxFileSize = 350 * 1024
+    /// Documents and audio are sent as-is. The relay accepts 7,000,000 base64
+    /// characters per attachment, just over 5 MB of raw data.
+    static let maxDocumentSize = 5 * 1024 * 1024
     static let maxAttachmentsPerMessage = 4
+
+    enum FileError: LocalizedError {
+        case unsupportedType(String)
+        case tooLarge
+        case unreadable
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedType(let name): "Hermes can't read \(name)."
+            case .tooLarge: "That file is over 5 MB."
+            case .unreadable: "That file couldn't be opened."
+            }
+        }
+    }
 
     private static let supportedTextMimeTypes: Set<String> = [
         "text/plain",
@@ -38,8 +53,39 @@ struct PendingAttachment: Identifiable, Sendable {
         "application/x-yaml",
     ]
 
+    /// PDF and Office files, converted to text on the host.
+    private static let documentMimeTypes: [String: String] = [
+        "pdf": "application/pdf",
+        "doc": "application/msword",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xls": "application/vnd.ms-excel",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "ppt": "application/vnd.ms-powerpoint",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "rtf": "application/rtf",
+        "epub": "application/epub+zip",
+    ]
+
+    /// Audio, transcribed on the host.
+    private static let audioMimeTypes: [String: String] = [
+        "m4a": "audio/x-m4a", "mp3": "audio/mpeg", "wav": "audio/wav", "aac": "audio/aac",
+        "caf": "audio/x-caf", "ogg": "audio/ogg", "flac": "audio/flac", "aiff": "audio/aiff",
+        "aif": "audio/aiff", "opus": "audio/ogg",
+    ]
+
     static func supportsMimeType(_ mimeType: String) -> Bool {
-        mimeType.hasPrefix("image/") || supportedTextMimeTypes.contains(mimeType)
+        mimeType.hasPrefix("image/") || mimeType.hasPrefix("audio/")
+            || supportedTextMimeTypes.contains(mimeType)
+            || documentMimeTypes.values.contains(mimeType)
+    }
+
+    /// SF Symbol for a file attachment chip.
+    static func symbolName(forMimeType mimeType: String) -> String {
+        if mimeType.hasPrefix("image/") { return "photo" }
+        if mimeType.hasPrefix("audio/") { return "waveform" }
+        if mimeType == "application/pdf" { return "doc.richtext" }
+        if mimeType.hasPrefix("text/") { return "doc.text" }
+        return "doc"
     }
 
     /// Create an image attachment from a UIImage.
@@ -91,18 +137,19 @@ struct PendingAttachment: Identifiable, Sendable {
     }
 
     /// Create a file attachment from a URL.
-    static func file(at url: URL) -> PendingAttachment? {
+    static func file(at url: URL) throws(FileError) -> PendingAttachment {
         let mimeType = Self.mimeType(for: url)
-        guard supportsMimeType(mimeType) else { return nil }
+        guard supportsMimeType(mimeType) else { throw .unsupportedType(url.lastPathComponent) }
 
-        guard let data = try? Data(contentsOf: url) else { return nil }
+        guard let data = try? Data(contentsOf: url) else { throw .unreadable }
         let isImage = mimeType.hasPrefix("image/")
 
         if isImage, let image = UIImage(data: data) {
-            return Self.image(image, fileName: url.lastPathComponent)
+            guard let attachment = Self.image(image, fileName: url.lastPathComponent) else { throw .tooLarge }
+            return attachment
         }
 
-        guard data.count <= maxFileSize else { return nil }
+        guard data.count <= maxDocumentSize else { throw .tooLarge }
 
         var thumbData: Data?
         if let image = UIImage(data: data) {
@@ -127,7 +174,7 @@ struct PendingAttachment: Identifiable, Sendable {
     static func restore(from attachment: MessageAttachment) -> PendingAttachment? {
         guard let localStoragePath = attachment.localStoragePath else { return nil }
         let url = URL(fileURLWithPath: localStoragePath)
-        guard let data = try? Data(contentsOf: url), data.count <= maxFileSize else { return nil }
+        guard let data = try? Data(contentsOf: url), data.count <= maxDocumentSize else { return nil }
 
         let thumbnailData = attachment.thumbnailBase64.flatMap { Data(base64Encoded: $0) }
         let kind = attachment.kind == "image" ? Kind.image : Kind.file
@@ -163,7 +210,7 @@ struct PendingAttachment: Identifiable, Sendable {
             "xml": "text/xml", "yml": "application/yaml",
             "yaml": "application/yaml",
         ]
-        return map[ext] ?? "application/octet-stream"
+        return map[ext] ?? documentMimeTypes[ext] ?? audioMimeTypes[ext] ?? "application/octet-stream"
     }
 
     private static func stageLocally(data: Data, preferredFileName: String) -> String? {

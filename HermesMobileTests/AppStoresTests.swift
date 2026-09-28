@@ -860,13 +860,13 @@ struct AppStoresTests {
         }
 
         let tempDirectory = FileManager.default.temporaryDirectory
-        let oversizedData = Data(repeating: 0x41, count: 300 * 1024)
+        let oversizedData = Data(repeating: 0x41, count: 4 * 1024 * 1024)
         var attachments: [PendingAttachment] = []
 
         for index in 0 ..< 4 {
             let url = tempDirectory.appendingPathComponent("oversized-\(index)-\(UUID().uuidString).txt")
             try oversizedData.write(to: url)
-            attachments.append(try #require(PendingAttachment.file(at: url)))
+            attachments.append(try PendingAttachment.file(at: url))
         }
 
         let apiClient = RelayAPIClient(
@@ -887,7 +887,7 @@ struct AppStoresTests {
 
         #expect(requestCount.value == 0)
         #expect(response.status == .failed)
-        #expect(response.content == "The attachment was too large for Hermes to process. Try a smaller image.")
+        #expect(response.content == "The attachments were too large to send. Try fewer or smaller files.")
     }
 
     @Test @MainActor
@@ -935,7 +935,7 @@ struct AppStoresTests {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-retry-\(UUID().uuidString).txt")
         let retryData = try #require("retry me".data(using: .utf8))
         try retryData.write(to: tempURL)
-        let attachment = try #require(PendingAttachment.file(at: tempURL))
+        let attachment = try PendingAttachment.file(at: tempURL)
 
         let suiteName = "chat-store-attachment-retry-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

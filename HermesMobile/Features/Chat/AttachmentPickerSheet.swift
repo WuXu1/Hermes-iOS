@@ -158,9 +158,12 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     let onComplete: ([URL]) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let officeTypes = ["com.microsoft.word.doc", "org.openxmlformats.wordprocessingml.document"]
+            .compactMap { UTType($0) }
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [
-            .image, .plainText, .sourceCode, .json, .html, .xml, .yaml,
-        ], asCopy: true)
+            .image, .plainText, .sourceCode, .json, .html, .xml, .yaml, .commaSeparatedText,
+            .pdf, .rtf, .epub, .spreadsheet, .presentation, .audio,
+        ] + officeTypes, asCopy: true)
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker

@@ -264,10 +264,7 @@ struct ChatInputBar: View {
     }
 
     private func fileIcon(for mimeType: String) -> String {
-        if mimeType.hasPrefix("image/") { return "photo" }
-        if mimeType == "application/pdf" { return "doc.richtext" }
-        if mimeType.hasPrefix("text/") { return "doc.text" }
-        return "doc"
+        PendingAttachment.symbolName(forMimeType: mimeType)
     }
 
     @ViewBuilder
