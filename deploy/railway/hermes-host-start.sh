@@ -108,20 +108,18 @@ for path in [home / "config.yaml", *sorted(home.glob("profiles/*/config.yaml"))]
 # The Gemini key only goes to the default profile, whose gateway transcribes
 # voice messages; Hermes never picks Gemini for anything else, since the main
 # provider is set explicitly.
-# Telegram: one bot per role. TELEGRAM_BOT_TOKEN is the chief of staff's bot;
-# TELEGRAM_BOT_TOKEN_<ROLE> (e.g. _RESEARCHER) is that role's. The multiplexed
-# default gateway serves every profile's bot from one process.
 keys = {name: os.environ[name] for name in ("DEEPSEEK_API_KEY",) if os.environ.get(name)}
-gemini = {"GEMINI_API_KEY": os.environ["GEMINI_API_KEY"]} if os.environ.get("GEMINI_API_KEY") else {}
-allowed = {"TELEGRAM_ALLOWED_USERS": os.environ["TELEGRAM_ALLOWED_USERS"]} if os.environ.get("TELEGRAM_ALLOWED_USERS") else {}
-managed = {*keys, "GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS"}
+# Telegram talks to the default profile (the chief of staff) only, so its bot
+# token and allowed users go there too; role gateways stay off.
+default_only = {
+    name: os.environ[name]
+    for name in ("GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS")
+    if os.environ.get(name)
+}
 for env_path in [home / ".env", *sorted(home.glob("profiles/*/.env"))]:
-    is_default = env_path == home / ".env"
-    token = os.environ.get("TELEGRAM_BOT_TOKEN" if is_default else f"TELEGRAM_BOT_TOKEN_{env_path.parent.name.upper()}")
-    wanted = {**keys, **(gemini if is_default else {})}
-    if token:
-        wanted.update({"TELEGRAM_BOT_TOKEN": token, **allowed})
+    wanted = {**keys, **default_only} if env_path == home / ".env" else keys
     lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+    managed = {*keys, "GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS"}
     lines = [line for line in lines if line.split("=", 1)[0].strip() not in managed]
     lines += [f"{name}={value}" for name, value in wanted.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
