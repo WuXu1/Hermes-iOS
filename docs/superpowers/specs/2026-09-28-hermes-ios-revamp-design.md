@@ -15,8 +15,9 @@ app a cleaner, more modern look built on iOS 26 Liquid Glass.
 - Home Screen widgets, Live Activities and CarPlay keep their current look.
 - No push notifications (sideloaded builds can't receive APNs). Screens refresh
   while they're visible.
-- No new relay database tables: the existing `conversations` table already
-  supports several conversations per user.
+- No new relay database tables. The existing `conversations` table already
+  supports several conversations per user; it gains one nullable column,
+  `activated_at`, added by the relay's existing migration step.
 - No light mode. The app stays dark-first, but every color becomes a semantic
   token so light mode can be added later.
 
@@ -74,10 +75,14 @@ $HERMES_DASHBOARD_SESSION_TOKEN`. It is never exposed publicly.
 | `PATCH /v1/conversations/{id}` | Renames a conversation |
 | `DELETE /v1/conversations/{id}` | Archives a conversation |
 
-"Current" becomes a pointer instead of "the only one". Existing endpoints
+"Current" becomes the non-archived conversation the user activated most
+recently (`activated_at`, falling back to `created_at`), so a reply arriving in
+an older chat never switches you back to it. Existing endpoints
 (`/v1/conversations/current`, `/v1/messages`, clear) keep working unchanged,
-so old app builds don't break. A conversation's title is set from its first
-user message (trimmed to 60 characters) unless it has been renamed.
+so old app builds don't break. Clear still gives you an empty conversation,
+even when older ones exist. A conversation's title is set from its first user
+message (whitespace collapsed, at most 60 characters) unless it has been
+renamed.
 
 ### App: data layer
 

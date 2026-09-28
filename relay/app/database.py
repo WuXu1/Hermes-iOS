@@ -49,6 +49,11 @@ class Database:
             conversation_columns = {column["name"] for column in inspector.get_columns("conversations")}
             if "hermes_session_id" not in conversation_columns:
                 connection.execute(text("ALTER TABLE conversations ADD COLUMN hermes_session_id TEXT"))
+            if "activated_at" not in conversation_columns:
+                if str(self.engine.url).startswith("sqlite"):
+                    connection.execute(text("ALTER TABLE conversations ADD COLUMN activated_at DATETIME"))
+                else:
+                    connection.execute(text("ALTER TABLE conversations ADD COLUMN activated_at TIMESTAMP WITH TIME ZONE"))
 
             message_columns = {column["name"] for column in inspector.get_columns("messages")}
             if "delivery_status" not in message_columns:

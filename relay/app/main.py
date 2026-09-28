@@ -48,7 +48,15 @@ from .security import AuthContext, get_auth_context, get_db, get_settings, requi
 from .services import (
     activate_hermes_host_connection,
     append_message,
+    activate_conversation,
+    archive_conversation,
     archive_current_conversation,
+    create_conversation,
+    get_user_conversation,
+    last_conversation_message,
+    list_conversations,
+    rename_conversation,
+    summarize_conversation,
     authenticate_hermes_host,
     build_connector_websocket_url,
     claim_next_message_job,
@@ -107,6 +115,10 @@ from .talk_mcp import register_talk_mcp_routes
 
 class MemoryWriteBody(BaseModel):
     content: str
+
+
+class ConversationRenameBody(BaseModel):
+    title: str
 
 
 # Connector RPC errors are "<code>: <message>" strings; map codes to HTTP statuses.
@@ -1507,7 +1519,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db: Session = Depends(get_db),
     ) -> dict:
         archive_current_conversation(db, user_id=auth.user.id)
-        conversation = get_or_create_current_conversation(db, user_id=auth.user.id)
+        # Always start an empty conversation, even when older ones exist.
+        conversation = create_conversation(db, user_id=auth.user.id)
         messages = list_conversation_messages(db, conversation_id=conversation.id)
         record_audit(
             db,
@@ -1519,6 +1532,77 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         db.commit()
         return success({"conversation": serialize_conversation(conversation, messages)})
+
+    def conversation_summary(db: Session, conversation, *, current_id: str | None) -> dict:
+        return summarize_conversation(
+            conversation,
+            last_message=last_conversation_message(db, conversation_id=conversation.id),
+            is_current=conversation.id == current_id,
+        )
+
+    def require_user_conversation(db: Session, *, user_id: str, conversation_id: str):
+        conversation = get_user_conversation(db, user_id=user_id, conversation_id=conversation_id)
+        if conversation is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
+        return conversation
+
+    @app.get("/v1/conversations")
+    def conversations_list(
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        current_id = get_or_create_current_conversation(db, user_id=auth.user.id).id
+        return success(
+            {
+                "conversations": [
+                    conversation_summary(db, conversation, current_id=current_id)
+                    for conversation in list_conversations(db, user_id=auth.user.id)
+                ]
+            }
+        )
+
+    @app.post("/v1/conversations")
+    def conversations_create(
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        conversation = create_conversation(db, user_id=auth.user.id)
+        return success({"conversation": conversation_summary(db, conversation, current_id=conversation.id)})
+
+    @app.post("/v1/conversations/{conversation_id}/activate")
+    def conversations_activate(
+        conversation_id: str,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        conversation = require_user_conversation(db, user_id=auth.user.id, conversation_id=conversation_id)
+        conversation = activate_conversation(db, conversation=conversation)
+        return success({"conversation": conversation_summary(db, conversation, current_id=conversation.id)})
+
+    @app.patch("/v1/conversations/{conversation_id}")
+    def conversations_rename(
+        conversation_id: str,
+        body: ConversationRenameBody,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        title = " ".join(body.title.split())[:120]
+        if not title:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title cannot be empty.")
+        conversation = require_user_conversation(db, user_id=auth.user.id, conversation_id=conversation_id)
+        conversation = rename_conversation(db, conversation=conversation, title=title)
+        current_id = get_or_create_current_conversation(db, user_id=auth.user.id).id
+        return success({"conversation": conversation_summary(db, conversation, current_id=current_id)})
+
+    @app.delete("/v1/conversations/{conversation_id}")
+    def conversations_archive(
+        conversation_id: str,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        conversation = require_user_conversation(db, user_id=auth.user.id, conversation_id=conversation_id)
+        archive_conversation(db, conversation=conversation)
+        return success({"archived": True})
 
     @app.post("/v1/messages")
     async def create_message(
