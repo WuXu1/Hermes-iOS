@@ -42,6 +42,8 @@ HERMES_DASHBOARD_SESSION_TOKEN=<random>
 
 The model defaults to DeepSeek `deepseek-flash`. Override with `HERMES_PROVIDER`,
 `HERMES_MODEL` and `HERMES_BASE_URL`.
+A role can use its own model: put a model id in `roles/<role>/model` (the researcher
+uses `deepseek-v4-pro`, which has no vision, so images sent to it won't be read).
 
 ## What the start script does on every boot
 

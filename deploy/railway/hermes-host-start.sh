@@ -54,6 +54,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 home = Path(os.environ["HERMES_HOME"])
+roles_dir = Path("/opt/hermes-mobile/roles")
 yaml = YAML()
 for path in [home / "config.yaml", *sorted(home.glob("profiles/*/config.yaml"))]:
     config = (yaml.load(path.read_text(encoding="utf-8")) if path.exists() else None) or {}
@@ -63,6 +64,10 @@ for path in [home / "config.yaml", *sorted(home.glob("profiles/*/config.yaml"))]
         config["model"] = model
     model["provider"] = os.environ.get("HERMES_PROVIDER") or "deepseek"
     model["default"] = os.environ.get("HERMES_MODEL") or "deepseek-flash"
+    # A role can pin its own model with a one-line roles/<role>/model file.
+    role_model = roles_dir / path.parent.name / "model"
+    if path.parent.parent.name == "profiles" and role_model.is_file():
+        model["default"] = role_model.read_text(encoding="utf-8").strip() or model["default"]
     # The upstream image seeds an OpenRouter base_url; it must match the provider.
     base_url = os.environ.get("HERMES_BASE_URL") or (
         "https://api.deepseek.com" if model["provider"] == "deepseek" else ""
