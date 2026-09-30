@@ -4,7 +4,9 @@
 #   docker build -f deploy/railway/hermes-host.Dockerfile .
 #
 # Mount a persistent volume at /opt/data (HERMES_HOME + connector state).
-FROM nousresearch/hermes-agent:v2026.9.24
+# The -desktop variant adds Bot Screen: an Xfce desktop + Chromium you can take
+# over from Hermes Desktop to sign in to sites the agent then stays signed in to.
+FROM nousresearch/hermes-agent:v2026.9.24-desktop
 
 USER root
 

@@ -50,6 +50,7 @@ That's it — open the Team tab to meet your agents.
 - **Model:** set `HERMES_PROVIDER`, `HERMES_MODEL` and `HERMES_BASE_URL` on `hermes-host`, plus that provider's API key.
 - **Attachments:** the main model reads photos itself; PDFs and Office files are converted to text on the host. Audio needs a model that can listen: set a free `GEMINI_API_KEY` on `hermes-host` and the connector has Gemini Flash transcribe audio (attachments in this app, plus Hermes's own speech-to-text for the web UI and messaging apps; override with `HERMES_TRANSCRIBE_MODEL`). Gemini is used for nothing else.
 - **Other clients:** set `HERMES_WEBUI_PASSWORD` on `hermes-host` and give it a Railway domain on port 8787 (`railway domain -s hermes-host -p 8787`). That serves [hermes-webui](https://github.com/nesquena/hermes-webui) — a browser UI — and is the server the [Hermex](https://github.com/mvanhorn/hermex) iOS app connects to. Every client shares the same Hermes: memory, sessions, team and automations.
+- **Signed-in browser:** the host runs Hermes's desktop image, so Hermes Desktop (Mac/Windows/Linux) can open the agent's [Bot Screen](https://hermes-agent.nousresearch.com/docs/user-guide/features/bot-screen), take over, and sign in to sites the agent then stays signed in to. Set the `HERMES_DASHBOARD_BASIC_AUTH_*` variables and add a domain on port 9119, then connect Hermes Desktop to it (Settings → Gateways → Remote gateway).
 - **Voice mode** needs an OpenAI key: `railway ssh -s hermes-host -- hermes-mobile configure-realtime`.
 
 ## Limitations
