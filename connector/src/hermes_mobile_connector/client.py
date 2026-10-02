@@ -1681,9 +1681,16 @@ class HermesMobileConnector:
             f"MCP readiness: {readiness}",
         ]
 
+    @staticmethod
+    def _mcp_profiles() -> tuple[str, ...]:
+        raw = os.getenv("HERMES_MOBILE_MCP_PROFILES", "default")
+        return tuple(p.strip() for p in raw.split(",") if p.strip())
+
     def _configure_native_mcp(self, state: ConnectorState, *, hermes_command: str) -> ConnectorState:
         try:
-            registration = register_native_mcp_server(state_dir=self.state_store.state_dir)
+            registration = register_native_mcp_server(
+                state_dir=self.state_store.state_dir, profiles=self._mcp_profiles()
+            )[0]
             state.mcp_server_name = registration.server_name
             state.mcp_configured = True
             state.mcp_command_path = registration.command_path

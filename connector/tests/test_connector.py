@@ -92,13 +92,13 @@ def test_setup_creates_connector_state(monkeypatch, tmp_path):
     monkeypatch.setattr(HermesCLIExecutor, "resolved_command_path", lambda self: "/usr/local/bin/hermes")
     monkeypatch.setattr(
         "hermes_mobile_connector.client.register_native_mcp_server",
-        lambda state_dir: MCPRegistrationStatus(
+        lambda state_dir, profiles=("default",): [MCPRegistrationStatus(
             server_name="hermes_mobile",
             hermes_home=tmp_path / ".hermes",
             config_path=tmp_path / ".hermes" / "config.yaml",
             command_path="/tmp/hermes-mobile-mcp",
             registered=True,
-        ),
+        )],
     )
     monkeypatch.setattr("hermes_mobile_connector.client.validate_native_mcp_server", lambda hermes_command, server_name: None)
     monkeypatch.setattr("hermes_mobile_connector.client.validate_native_mcp_tools", lambda server_name: None)
@@ -163,13 +163,13 @@ def test_setup_includes_installation_secret_from_env(monkeypatch, tmp_path):
     monkeypatch.setattr("hermes_mobile_connector.client.httpx.post", fake_post)
     monkeypatch.setattr(
         "hermes_mobile_connector.client.register_native_mcp_server",
-        lambda state_dir: MCPRegistrationStatus(
+        lambda state_dir, profiles=("default",): [MCPRegistrationStatus(
             server_name="hermes_mobile",
             hermes_home=tmp_path / ".hermes",
             config_path=tmp_path / ".hermes" / "config.yaml",
             command_path="/tmp/hermes-mobile-mcp",
             registered=True,
-        ),
+        )],
     )
     monkeypatch.setattr("hermes_mobile_connector.client.validate_native_mcp_server", lambda hermes_command, server_name: None)
     monkeypatch.setattr("hermes_mobile_connector.client.validate_native_mcp_tools", lambda server_name: None)
@@ -443,7 +443,7 @@ def test_setup_can_skip_native_mcp_configuration(monkeypatch, tmp_path):
     monkeypatch.setattr("hermes_mobile_connector.client.httpx.post", fake_post)
     monkeypatch.setattr(
         "hermes_mobile_connector.client.register_native_mcp_server",
-        lambda state_dir: (_ for _ in ()).throw(AssertionError("register_native_mcp_server should not be called")),
+        lambda state_dir, profiles=("default",): (_ for _ in ()).throw(AssertionError("register_native_mcp_server should not be called")),
     )
 
     state = connector.setup(relay_url="https://relay.example.com/v1", configure_mcp=False)
@@ -470,13 +470,13 @@ def test_configure_mcp_updates_existing_connector_state(monkeypatch, tmp_path):
     monkeypatch.setattr(connector.executor, "detect_version", lambda: "Hermes 1.2.3")
     monkeypatch.setattr(
         "hermes_mobile_connector.client.register_native_mcp_server",
-        lambda state_dir: MCPRegistrationStatus(
+        lambda state_dir, profiles=("default",): [MCPRegistrationStatus(
             server_name="hermes_mobile",
             hermes_home=tmp_path / ".hermes",
             config_path=tmp_path / ".hermes" / "config.yaml",
             command_path="/tmp/hermes-mobile-mcp",
             registered=True,
-        ),
+        )],
     )
     monkeypatch.setattr("hermes_mobile_connector.client.validate_native_mcp_server", lambda hermes_command, server_name: None)
     monkeypatch.setattr("hermes_mobile_connector.client.validate_native_mcp_tools", lambda server_name: None)
@@ -712,8 +712,8 @@ def test_register_native_mcp_server_updates_existing_hermes_config(monkeypatch, 
         lambda: tmp_path / "bin" / "hermes-mobile-mcp",
     )
 
-    status = register_native_mcp_server(state_dir=tmp_path / "connector-state")
-    second_status = register_native_mcp_server(state_dir=tmp_path / "connector-state")
+    status = register_native_mcp_server(state_dir=tmp_path / "connector-state")[0]
+    second_status = register_native_mcp_server(state_dir=tmp_path / "connector-state")[0]
 
     text = config_path.read_text(encoding="utf-8")
     assert status.registered is True

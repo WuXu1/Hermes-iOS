@@ -12,8 +12,11 @@ import sys
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
+from .profiles import profile_home
+
 
 MCP_SERVER_NAME = "hermes_mobile"
+BACKUP_SUFFIX = ".bak-before-hermes-mobile"
 MCP_TOOL_NAMES = [
     "get_user_location",
     "get_location_history",
@@ -117,9 +120,8 @@ def _extract_included_tools(entry: dict | None) -> tuple[str, ...]:
     return tuple(str(item) for item in include)
 
 
-def register_native_mcp_server(*, state_dir: Path, server_name: str = MCP_SERVER_NAME) -> MCPRegistrationStatus:
-    hermes_home = resolve_hermes_home()
-    config_path = hermes_home / "config.yaml"
+def _register_in(config_path: Path, *, state_dir: Path, server_name: str) -> MCPRegistrationStatus:
+    hermes_home = config_path.parent
     config = _load_config(config_path)
     mcp_servers = config.get("mcp_servers")
     if not isinstance(mcp_servers, CommentedMap):
@@ -157,6 +159,36 @@ def register_native_mcp_server(*, state_dir: Path, server_name: str = MCP_SERVER
         registered=True,
         included_tools=tuple(MCP_TOOL_NAMES),
     )
+
+
+def _backup(config_path: Path) -> None:
+    backup = config_path.with_name(config_path.name + BACKUP_SUFFIX)
+    if config_path.exists() and not backup.exists():
+        shutil.copy2(config_path, backup)
+
+
+def register_native_mcp_server(
+    *, state_dir: Path, profiles: tuple[str, ...] = ("default",), server_name: str = MCP_SERVER_NAME
+) -> list[MCPRegistrationStatus]:
+    statuses = []
+    for profile in profiles:
+        config_path = profile_home(resolve_hermes_home(), profile) / "config.yaml"
+        _backup(config_path)
+        statuses.append(_register_in(config_path, state_dir=state_dir, server_name=server_name))
+    return statuses
+
+
+def unregister_native_mcp_server(*, profiles: tuple[str, ...], server_name: str = MCP_SERVER_NAME) -> list[Path]:
+    changed = []
+    for profile in profiles:
+        config_path = profile_home(resolve_hermes_home(), profile) / "config.yaml"
+        config = _load_config(config_path)
+        servers = config.get("mcp_servers")
+        if isinstance(servers, dict) and server_name in servers:
+            del servers[server_name]
+            _save_config(config_path, config)
+            changed.append(config_path)
+    return changed
 
 
 def inspect_native_mcp_registration(*, server_name: str = MCP_SERVER_NAME) -> MCPRegistrationStatus:

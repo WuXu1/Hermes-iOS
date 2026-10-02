@@ -14,6 +14,7 @@ import httpx
 import qrcode
 
 from .client import HermesMobileConnector
+from .mcp_registration import register_native_mcp_server, unregister_native_mcp_server
 from .service_management import build_service_manager
 
 
@@ -396,10 +397,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Redeem the host without editing ~/.hermes/config.yaml. You can run `hermes-mobile configure-mcp` later.",
     )
 
-    subparsers.add_parser(
+    configure_mcp = subparsers.add_parser(
         "configure-mcp",
-        help="Write Hermes Mobile MCP tools into the local Hermes config and validate them.",
+        help="Register (or with --unregister, remove) the phone-context MCP server in Hermes profiles.",
     )
+    configure_mcp.add_argument("--profiles", default="default", help="Comma-separated profile names.")
+    configure_mcp.add_argument("--unregister", action="store_true")
     configure_realtime = subparsers.add_parser(
         "configure-realtime",
         help="Add or update the OpenAI Realtime configuration stored on this Hermes host.",
@@ -622,11 +625,15 @@ def cmd_setup(args: argparse.Namespace, connector: HermesMobileConnector) -> int
     return 0
 
 
-def cmd_configure_mcp(connector: HermesMobileConnector) -> int:
-    state = connector.configure_mcp()
-    print(f"Configured Hermes Mobile MCP for host {state.host_id}")
-    for line in connector.validate_mcp():
-        print(line)
+def cmd_configure_mcp(args: argparse.Namespace, connector: HermesMobileConnector) -> int:
+    profiles = tuple(p.strip() for p in args.profiles.split(",") if p.strip())
+    if args.unregister:
+        for path in unregister_native_mcp_server(profiles=profiles):
+            print(f"Removed Hermes Mobile MCP from {path}")
+        return 0
+    statuses = register_native_mcp_server(state_dir=connector.state_store.state_dir, profiles=profiles)
+    for status in statuses:
+        print(f"Configured Hermes Mobile MCP in {status.config_path}")
     return 0
 
 
@@ -769,7 +776,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "setup":
         return cmd_setup(args, connector)
     if args.command == "configure-mcp":
-        return cmd_configure_mcp(connector)
+        return cmd_configure_mcp(args, connector)
     if args.command == "configure-realtime":
         return cmd_configure_realtime(args, connector)
     if args.command == "enroll":
