@@ -13,7 +13,7 @@ logger = logging.getLogger("hermes.relay")
 import json
 from typing import Any
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
@@ -28,6 +28,9 @@ from .models import Conversation, HermesHost, Message, PushRegistration
 from .pairing import HostSetupCodePayload, format_phone_pairing_code, build_host_setup_code
 from .rate_limit import PhonePairingRateLimiter
 from .schemas import (
+    PROFILE_PATTERN,
+    ConversationCreateBody,
+    ConversationOpenBody,
     ConnectorSetupRequest,
     DeviceRegisterRequest,
     DeviceAppStateRequest,
@@ -78,6 +81,7 @@ from .services import (
     get_message_job,
     get_message_job_for_user_message,
     get_or_create_current_conversation,
+    open_session_conversation,
     get_voice_session,
     inject_voice_transcript,
     get_user_message_by_client_message_id,
@@ -538,8 +542,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "text": message.text,
                 })
 
+        conversation = db.get(Conversation, job.conversation_id)
         job_data: dict = {
             "id": job.id,
+            "profile": conversation.profile if conversation else "default",
             "conversationId": job.conversation_id,
             "latestUserMessage": user_message.text,
             "history": regular_history,
@@ -555,6 +561,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": 1,
             "job": job_data,
         }
+
+    app.state.build_job_execute_payload = build_job_execute_payload
 
     @app.get("/v1/health")
     def health() -> dict:
@@ -1507,20 +1515,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return success({"sent": sent, "total": len(registrations)})
 
     @app.get("/v1/conversations/current")
-    def current_conversation(auth: AuthContext = Depends(get_auth_context), db: Session = Depends(get_db)) -> dict:
-        conversation = get_or_create_current_conversation(db, user_id=auth.user.id)
+    def current_conversation(
+        profile: str = Query("default", pattern=PROFILE_PATTERN),
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        conversation = get_or_create_current_conversation(db, user_id=auth.user.id, profile=profile)
         messages = list_conversation_messages(db, conversation_id=conversation.id)
         jobs = list_message_jobs_for_conversation(db, conversation_id=conversation.id)
         return success({"conversation": serialize_conversation(conversation, messages, jobs=jobs)})
 
     @app.post("/v1/conversations/current/clear")
     def clear_current_conversation(
+        profile: str = Query("default", pattern=PROFILE_PATTERN),
         auth: AuthContext = Depends(get_auth_context),
         db: Session = Depends(get_db),
     ) -> dict:
-        archive_current_conversation(db, user_id=auth.user.id)
+        archive_current_conversation(db, user_id=auth.user.id, profile=profile)
         # Always start an empty conversation, even when older ones exist.
-        conversation = create_conversation(db, user_id=auth.user.id)
+        conversation = create_conversation(db, user_id=auth.user.id, profile=profile)
         messages = list_conversation_messages(db, conversation_id=conversation.id)
         record_audit(
             db,
@@ -1563,10 +1576,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/v1/conversations")
     def conversations_create(
+        body: ConversationCreateBody | None = None,
         auth: AuthContext = Depends(get_auth_context),
         db: Session = Depends(get_db),
     ) -> dict:
-        conversation = create_conversation(db, user_id=auth.user.id)
+        conversation = create_conversation(db, user_id=auth.user.id, profile=(body.profile if body else "default"))
+        return success({"conversation": conversation_summary(db, conversation, current_id=conversation.id)})
+
+    @app.post("/v1/conversations/open")
+    def conversations_open(
+        body: ConversationOpenBody,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        conversation = open_session_conversation(
+            db, user_id=auth.user.id, profile=body.profile, session_id=body.sessionId
+        )
         return success({"conversation": conversation_summary(db, conversation, current_id=conversation.id)})
 
     @app.post("/v1/conversations/{conversation_id}/activate")
@@ -1643,7 +1668,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     db.commit()
                     return success_response(payload_data, status_code=status_code)
 
-        conversation = get_or_create_current_conversation(db, user_id=auth.user.id)
+        conversation = get_or_create_current_conversation(db, user_id=auth.user.id, profile=payload.profile)
         initial_delivery_status = "pending" if request_settings.hermes_adapter == "connector" else "sent"
         attachments_raw = (
             [att.model_dump() for att in payload.attachments]

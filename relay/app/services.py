@@ -931,17 +931,20 @@ CONVERSATION_TITLE_LIMIT = 60
 CONVERSATION_PREVIEW_LIMIT = 100
 
 
-def _active_conversations(user_id: str):
-    return select(Conversation).where(
+def _active_conversations(user_id: str, profile: str | None = None):
+    query = select(Conversation).where(
         Conversation.user_id == user_id,
         Conversation.is_archived.is_(False),
     )
+    if profile is not None:
+        query = query.where(Conversation.profile == profile)
+    return query
 
 
-def _current_conversation(db: Session, *, user_id: str) -> Conversation | None:
-    """The non-archived conversation the user activated most recently."""
+def _current_conversation(db: Session, *, user_id: str, profile: str = "default") -> Conversation | None:
+    """The non-archived conversation the user activated most recently for this agent."""
     return db.scalar(
-        _active_conversations(user_id)
+        _active_conversations(user_id, profile)
         .order_by(
             func.coalesce(Conversation.activated_at, Conversation.created_at).desc(),
             Conversation.created_at.desc(),
@@ -950,11 +953,11 @@ def _current_conversation(db: Session, *, user_id: str) -> Conversation | None:
     )
 
 
-def get_or_create_current_conversation(db: Session, *, user_id: str) -> Conversation:
-    conversation = _current_conversation(db, user_id=user_id)
+def get_or_create_current_conversation(db: Session, *, user_id: str, profile: str = "default") -> Conversation:
+    conversation = _current_conversation(db, user_id=user_id, profile=profile)
 
     if conversation is None:
-        conversation = Conversation(user_id=user_id, title=DEFAULT_CONVERSATION_TITLE)
+        conversation = Conversation(user_id=user_id, title=DEFAULT_CONVERSATION_TITLE, profile=profile)
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
@@ -962,8 +965,8 @@ def get_or_create_current_conversation(db: Session, *, user_id: str) -> Conversa
     return conversation
 
 
-def archive_current_conversation(db: Session, *, user_id: str) -> Conversation | None:
-    conversation = _current_conversation(db, user_id=user_id)
+def archive_current_conversation(db: Session, *, user_id: str, profile: str = "default") -> Conversation | None:
+    conversation = _current_conversation(db, user_id=user_id, profile=profile)
 
     if conversation is None:
         return None
@@ -989,8 +992,28 @@ def get_user_conversation(db: Session, *, user_id: str, conversation_id: str) ->
     return db.scalar(_active_conversations(user_id).where(Conversation.id == conversation_id))
 
 
-def create_conversation(db: Session, *, user_id: str) -> Conversation:
-    conversation = Conversation(user_id=user_id, title=NEW_CONVERSATION_TITLE, activated_at=utcnow())
+def create_conversation(db: Session, *, user_id: str, profile: str = "default") -> Conversation:
+    conversation = Conversation(user_id=user_id, title=NEW_CONVERSATION_TITLE, activated_at=utcnow(), profile=profile)
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+
+def open_session_conversation(db: Session, *, user_id: str, profile: str, session_id: str, title: str | None = None) -> Conversation:
+    """Bind a fresh relay conversation to an existing Hermes session and make it current."""
+    for old in db.scalars(
+        _active_conversations(user_id, profile).where(Conversation.hermes_session_id == session_id)
+    ):
+        old.is_archived = True
+        old.updated_at = utcnow()
+    conversation = Conversation(
+        user_id=user_id,
+        title=(title or NEW_CONVERSATION_TITLE),
+        profile=profile,
+        hermes_session_id=session_id,
+        activated_at=utcnow(),
+    )
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
@@ -1491,6 +1514,8 @@ def serialize_conversation(conversation: Conversation, messages: list[Message], 
     result = {
         "id": conversation.id,
         "title": conversation.title,
+        "profile": conversation.profile,
+        "hermesSessionId": conversation.hermes_session_id,
         "updatedAt": conversation.updated_at,
         "messages": [
             serialize_message(message, job=jobs_by_message_id.get(message.id))

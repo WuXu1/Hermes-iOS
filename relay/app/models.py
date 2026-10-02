@@ -147,6 +147,7 @@ class Conversation(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False, default="Hermes")
+    profile: Mapped[str] = mapped_column(Text, nullable=False, default="default", server_default="default")
     hermes_session_id: Mapped[str | None] = mapped_column(Text)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # When the user last made this conversation current; null for rows created

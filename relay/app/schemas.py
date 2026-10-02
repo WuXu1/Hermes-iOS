@@ -106,7 +106,21 @@ class AttachmentPayload(BaseModel):
     thumbnailData: str | None = Field(default=None, max_length=250_000)
 
 
+PROFILE_PATTERN = r"^[a-z0-9][a-z0-9_-]{0,63}$"
+SESSION_ID_PATTERN = r"^[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}$"
+
+
+class ConversationCreateBody(BaseModel):
+    profile: str = Field(default="default", pattern=PROFILE_PATTERN)
+
+
+class ConversationOpenBody(BaseModel):
+    profile: str = Field(default="default", pattern=PROFILE_PATTERN)
+    sessionId: str = Field(pattern=SESSION_ID_PATTERN)
+
+
 class MessageCreateRequest(BaseModel):
+    profile: str = Field(default="default", pattern=PROFILE_PATTERN)
     conversationId: UUID | None = None
     text: str = Field(default="")
     clientMessageId: UUID | None = None
