@@ -973,7 +973,7 @@ class HermesMobileConnector:
             elif method == "commands.catalog":
                 result = self._rpc_commands_catalog()
             elif method == "hermes.api":
-                result = await call_hermes_api(params, config=HermesApiConfig.from_env())
+                result = await call_hermes_api(params, config=HermesApiConfig.from_env(), hermes_home=resolve_hermes_home())
             elif method == "memory.read":
                 result = read_memory(resolve_hermes_home())
             elif method == "memory.write":
