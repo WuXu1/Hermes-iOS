@@ -84,7 +84,7 @@ class HermesApiConfig:
 def _match(method: str, path: str) -> frozenset[str]:
     method = (method or "").upper()
     for methods, pattern, keys in _ROUTES:
-        if method in methods and pattern.match(path or ""):
+        if method in methods and pattern.fullmatch(path or ""):
             return keys
     raise HermesApiError(f"forbidden: {method} {path} is not available to the app")
 
@@ -101,7 +101,10 @@ def filter_query(path: str, query: Mapping[str, Any] | None, *, method: str = "G
 def prepare_request(params: Mapping[str, Any], *, hermes_home: Path) -> dict:
     method = str(params.get("method") or "GET").upper()
     path = str(params.get("path") or "")
-    query = filter_query(path, params.get("query"), method=method)
+    raw_query = params.get("query")
+    if raw_query is not None and not isinstance(raw_query, Mapping):
+        raise HermesApiError("invalid: query must be an object")
+    query = filter_query(path, raw_query, method=method)
     try:
         profile = normalize_profile(query.get("profile"))
         home = profile_home(hermes_home, profile)
@@ -112,14 +115,23 @@ def prepare_request(params: Mapping[str, Any], *, hermes_home: Path) -> dict:
         query["profile"] = profile
 
     body = params.get("body")
-    if method == "PATCH" and _SESSION_ROUTE.match(path):
+    if body is not None and not isinstance(body, Mapping):
+        raise HermesApiError("invalid: body must be an object")
+    if method == "PATCH" and _SESSION_ROUTE.fullmatch(path):
         body = {key: value for key, value in dict(body or {}).items() if key in _SESSION_PATCH_KEYS}
-    if any(pattern.match(path) for pattern in _BODY_PROFILE_ROUTES) and method in {"PATCH", "PUT"}:
-        body = {**dict(body or {}), "profile": profile}
     if method == "PUT" and path == "/api/skills/toggle":
-        name = str((body or {}).get("name") or "")
-        if not (body or {}).get("enabled", True) and name in locked_skills(home):
-            raise HermesApiError(f"locked: {name} is this agent's role skill and stays on")
+        name = (body or {}).get("name")
+        enabled = (body or {}).get("enabled")
+        if not isinstance(name, str) or not re.fullmatch(_SEG, name.strip()):
+            raise HermesApiError("invalid: skill name is missing or malformed")
+        if not isinstance(enabled, bool):
+            raise HermesApiError("invalid: enabled must be true or false")
+        locked = {item.lower() for item in locked_skills(home)}
+        if enabled is not True and name.strip().lower() in locked:
+            raise HermesApiError(f"locked: {name.strip()} is this agent's role skill and stays on")
+        body = {"name": name, "enabled": enabled, "profile": profile}
+    elif any(pattern.fullmatch(path) for pattern in _BODY_PROFILE_ROUTES) and method == "PATCH":
+        body = {**dict(body or {}), "profile": profile}
     return {"method": method, "path": path, "query": query, "body": body, "home": home}
 
 

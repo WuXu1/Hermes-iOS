@@ -124,6 +124,40 @@ def test_locked_skill_cannot_be_disabled(tmp_path):
         )
 
 
+def _toggle(tmp_path, name, enabled):
+    (tmp_path / "config.yaml").write_text("skills:\n  auto_load: [coach]\n", encoding="utf-8")
+    return prepare_request(
+        {"method": "PUT", "path": "/api/skills/toggle", "body": {"name": name, "enabled": enabled}},
+        hermes_home=tmp_path,
+    )
+
+
+@pytest.mark.parametrize("enabled", ["false", 0, "off", False, None])
+def test_locked_skill_refuses_non_true_enabled(tmp_path, enabled):
+    with pytest.raises(HermesApiError, match="locked|invalid"):
+        _toggle(tmp_path, "coach", enabled)
+
+
+def test_locked_skill_name_match_is_normalised(tmp_path):
+    with pytest.raises(HermesApiError, match="locked"):
+        _toggle(tmp_path, "Coach ", False)
+
+
+def test_enabling_locked_skill_and_disabling_unlocked_pass(tmp_path):
+    assert _toggle(tmp_path, "coach", True)["body"] == {"name": "coach", "enabled": True, "profile": "default"}
+    assert _toggle(tmp_path, "arxiv", False)["body"]["enabled"] is False
+
+
+def test_route_with_trailing_newline_is_refused():
+    with pytest.raises(HermesApiError, match="forbidden"):
+        check_route("GET", "/api/status\n")
+
+
+def test_non_object_body_is_invalid(tmp_path):
+    with pytest.raises(HermesApiError, match="invalid"):
+        prepare_request({"method": "PATCH", "path": "/api/sessions/s1", "body": "x"}, hermes_home=tmp_path)
+
+
 def test_skills_response_marks_locked_skills(tmp_path):
     (tmp_path / "config.yaml").write_text("skills:\n  auto_load: [assistant-roles]\n", encoding="utf-8")
 
