@@ -1,0 +1,30 @@
+# Hermes Mobile connector: runs app chats as the chosen agent and proxies an allowlisted slice of the dashboard API.
+[Unit]
+Description=Hermes Mobile connector
+After=network-online.target hermes-mobile-relay.service hermes-dashboard.service
+Wants=hermes-mobile-relay.service hermes-dashboard.service
+
+[Service]
+Type=simple
+User=hermes
+Group=hermes
+WorkingDirectory=/data/workspace
+EnvironmentFile=/etc/hermes-mobile/connector.env
+Environment=HOME=/home/hermes
+Environment=HERMES_HOME=/data/.hermes
+Environment=HERMES_MOBILE_CONNECTOR_HOME=/data/.hermes-mobile
+Environment=HERMES_COMMAND=/home/hermes/.local/bin/hermes
+Environment=HERMES_WORKDIR=/data/workspace
+Environment=HERMES_MOBILE_RELAY_INTERNAL_URL=http://127.0.0.1:8000/v1
+Environment=HERMES_DASHBOARD_URL=http://127.0.0.1:9119
+Environment=HERMES_MOBILE_MCP_PROFILES=default,assistant,coach
+Environment=XDG_RUNTIME_DIR=/run/user/1001
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus
+Environment=PATH=/opt/hermes-mobile/connector-venv/bin:/home/hermes/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/hermes-mobile/connector-venv/bin/hermes-mobile run
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

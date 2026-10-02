@@ -3,61 +3,51 @@
 > [!NOTE]
 > An independent community project. Not affiliated with or endorsed by [Nous Research](https://nousresearch.com/) or the official [Hermes Agent](https://github.com/NousResearch/hermes-agent). Forked from [dylan-buck/Hermes-iOS](https://github.com/dylan-buck/Hermes-iOS).
 
-A native iPhone app for your own [Hermes Agent](https://github.com/NousResearch/hermes-agent), hosted in the cloud. Chat with Hermes, hand work to a team of specialist agents, schedule automations, and manage what Hermes knows — all from your phone, with no computer left running at home.
+A native iPhone app for your own [Hermes Agent](https://github.com/NousResearch/hermes-agent), running on a VM you control. Chat with your agents, browse their history (including Telegram conversations), schedule automations, and manage what Hermes knows, all from your phone.
 
 ## What you get
 
-- **Chat** — streaming replies, attachments (photos, PDFs, Office files, audio up to 5 MB), voice mode, slash commands, and full chat history (switch, rename, delete, search).
-- **Team** — a kanban team of Hermes profiles: a *chief of staff* you talk to, plus a **researcher**, **operator** (web tasks in a browser), **coder** and **reviewer** that pick up tasks in the background. See what's working, what's waiting on you, results and attachments; reply to unblock, approve or send back work, and edit each role's persona. Any chat message can be turned into a task for a role.
-- **Automations** — scheduled jobs from Hermes's templates (morning briefing, news digest, price watch…) or your own prompt and schedule. Run now, pause, and read each run's output.
-- **Library** — edit what Hermes remembers about you, and switch installed skills on or off.
-- **Settings** — model, host status, and the last 7 days of cost, sessions and tokens.
-- Phone context (location, health, motion) available to Hermes through MCP tools, if you allow it.
+- **Agents**: pick which Hermes agent (profile) to talk to; each keeps its own current conversation and memory. Personas are read-only in the app.
+- **Chat and history**: streaming replies, attachments (photos, PDFs, Office files, audio up to 5 MB), slash commands, and earlier Hermes history including Telegram sessions.
+- **Voice notes**: record a note and it is transcribed by Hermes's own local speech-to-text.
+- **Automations**: view scheduled jobs, run them, pause them and read each run's output.
+- **Library**: edit what Hermes remembers about you, and switch installed skills on or off.
+- **Phone context and widgets**: location, health and motion are available to selected agents through MCP tools if you allow it, and home-screen widgets show the state.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    A["iPhone app"] -->|"HTTPS"| B["Relay (Railway)"]
-    B -->|"WebSocket"| C["Connector + Hermes Agent (Railway)"]
-    C --> D["Your model provider"]
+    A["iPhone app"] -->|"HTTPS"| B["Caddy"]
+    B --> C["Relay"]
+    D["Connector"] -->|"WebSocket"| C
+    D --> E["Hermes Agent"]
 ```
 
-- **Relay** (`relay/`): the only public service. Pairs your phone, stores chats, and forwards requests to your host.
-- **Hermes host** (`deploy/railway/`): the official Hermes Agent image plus the connector (`connector/`). It runs your chats, the kanban team (via the Hermes gateway), cron jobs, and exposes an allowlisted slice of Hermes's API to the app. Nothing on it is publicly reachable.
+- **Relay** (`relay/`): the only public service, behind Caddy. Pairs your phone, stores chats, and forwards requests to the connector.
+- **Connector** (`connector/`): runs next to Hermes on the VM. It runs your chats as the chosen agent and exposes an allowlisted slice of Hermes's dashboard API to the app. Nothing else on the VM is publicly reachable.
 
 ## Set up your own
 
-You need a [Railway](https://railway.com) account, an API key for a model provider (the defaults use [DeepSeek](https://platform.deepseek.com) `deepseek-flash`), and a way to sideload an IPA onto your iPhone (iOS 26+).
+You need a VM already running Hermes Agent, a DNS name pointing at it, and a way to sideload an IPA onto your iPhone (iOS 26+).
 
-1. **Fork this repo** and create a Railway project with two services from it — `relay` and `hermes-host` — following [deploy/railway/README.md](deploy/railway/README.md). It lists every variable; you'll set your model key and time zone there.
+1. **Install on the VM** by following [deploy/vm/README.md](deploy/vm/README.md): it covers the firewall and DNS prerequisites, `install.sh`, registering phone context, and rollback with `uninstall.sh`.
 2. **Get the app.** Build the unsigned IPA on a Mac with Xcode:
    ```bash
    scripts/build_unsigned_ipa.sh
    ```
    then sideload `HermesMobile-unsigned.ipa` with your usual tool.
-3. **Pair your phone.** Create a pairing code on the host:
+3. **Pair your phone.** Create a pairing code on the VM:
    ```bash
-   railway ssh -s hermes-host -- hermes-mobile pair-phone
+   sudo -u hermes hermes-mobile pair-phone
    ```
-   In the app, choose *Enter Code Manually*, set the relay URL to `https://<your-relay-domain>/v1`, and enter the code.
-
-That's it — open the Team tab to meet your agents.
-
-### Customising
-
-- **Roles:** each folder in `deploy/railway/roles/` becomes a Hermes profile (`SOUL.md` persona + `description`). Add a folder and redeploy to add a role, or edit personas from the app.
-- **Model:** set `HERMES_PROVIDER`, `HERMES_MODEL` and `HERMES_BASE_URL` on `hermes-host`, plus that provider's API key.
-- **Attachments:** the main model reads photos itself; PDFs and Office files are converted to text on the host. Audio needs a model that can listen: set a free `GEMINI_API_KEY` on `hermes-host` and the connector has Gemini Flash transcribe audio (attachments in this app, plus Hermes's own speech-to-text for the web UI and messaging apps; override with `HERMES_TRANSCRIBE_MODEL`). Gemini is used for nothing else.
-- **Other clients:** set `HERMES_WEBUI_PASSWORD` on `hermes-host` and give it a Railway domain on port 8787 (`railway domain -s hermes-host -p 8787`). That serves [hermes-webui](https://github.com/nesquena/hermes-webui) — a browser UI — and is the server the [Hermex](https://github.com/mvanhorn/hermex) iOS app connects to. Every client shares the same Hermes: memory, sessions, team and automations.
-- **Signed-in browser:** the host runs Hermes's desktop image, so Hermes Desktop (Mac/Windows/Linux) can open the agent's [Bot Screen](https://hermes-agent.nousresearch.com/docs/user-guide/features/bot-screen), take over, and sign in to sites the agent then stays signed in to. Set the `HERMES_DASHBOARD_BASIC_AUTH_*` variables and add a domain on port 9119, then connect Hermes Desktop to it (Settings → Gateways → Remote gateway).
-- **Voice mode** needs an OpenAI key: `railway ssh -s hermes-host -- hermes-mobile configure-realtime`.
+   In the app, choose *Enter Code Manually*, set the relay URL to `https://<your-dns-name>/v1`, and enter the code.
 
 ## Limitations
 
 - Sideloaded builds can't receive push notifications, so the app refreshes while it's open; widgets may not share data after re-signing.
 - Everything Hermes reads — including phone data you share — is sent to your model provider.
-- Running a self-hosted relay and connector on your own machine (the original setup) still works; see [connector/README.md](connector/README.md) and [relay/README.md](relay/README.md).
+- Running the relay and connector on your own machine still works; see [connector/README.md](connector/README.md) and [relay/README.md](relay/README.md).
 
 ## Development
 

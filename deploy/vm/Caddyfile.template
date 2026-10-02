@@ -1,0 +1,19 @@
+{
+	email __EMAIL__
+}
+
+__DOMAIN__ {
+	encode gzip
+
+	@blocked {
+		path /internal/* /v1/connector/* /v1/hosts/enrollment-codes /v1/hosts/ws /v1/hosts/redeem /v1/push/* /v1/talk/* /v1/pairing/redeem /docs /redoc /openapi.json
+	}
+	respond @blocked 404
+
+	@app path /v1/*
+	reverse_proxy @app 127.0.0.1:8000 {
+		header_up X-Forwarded-For {remote_host}
+	}
+
+	respond 404
+}

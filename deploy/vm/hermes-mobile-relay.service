@@ -1,0 +1,23 @@
+# Hermes Mobile relay: the app's API, behind Caddy, on loopback only.
+[Unit]
+Description=Hermes Mobile relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hermes-relay
+Group=hermes-relay
+WorkingDirectory=/opt/hermes-mobile/relay
+EnvironmentFile=/etc/hermes-mobile/relay.env
+ExecStart=/opt/hermes-mobile/relay-venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --ws-max-size 52428800 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/hermes-mobile-relay
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

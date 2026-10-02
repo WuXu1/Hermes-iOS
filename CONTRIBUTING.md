@@ -53,7 +53,7 @@ The codebase has three independent pieces that communicate over the network:
 iOS App ──HTTP/SSE──▶ Relay ◀──WebSocket──▶ Connector ──▶ Hermes Agent
 ```
 
-- **Relay** is stateless and deployable anywhere (Fly.io, Railway, your own server)
+- **Relay** is stateless and deployable on your own server (see deploy/vm/)
 - **Connector** runs alongside the Hermes Agent on the user's machine
 - **iOS App** connects to the relay via the URL configured during onboarding
 

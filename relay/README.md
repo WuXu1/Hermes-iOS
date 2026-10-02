@@ -59,16 +59,9 @@ If `CONNECTOR_SETUP_SECRET` is set, every connector must provide the same value 
 
 The full variable matrix lives in [../docs/CONFIGURATION.md](../docs/CONFIGURATION.md).
 
-## Deploy to Fly.io
+## Deploy
 
-The tracked [fly.toml](fly.toml) contains placeholders only. Replace the app name and `PUBLIC_BASE_URL`, then deploy.
-
-Two supported paths:
-
-- **Guided path**: run `hermes-mobile setup` on the connector host and choose the Fly deployment option
-- **Manual path**: follow [docs/fly-io.md](docs/fly-io.md)
-
-The relay docs assume Fly Managed Postgres for new deployments.
+The supported deployment is a self-hosted VM with Caddy: see [../deploy/vm/README.md](../deploy/vm/README.md).
 
 ## Local Hermes execution modes
 
@@ -164,5 +157,4 @@ APNs and CarPlay are optional platform features. They are documented in [../docs
 
 - [../README.md](../README.md)
 - [../docs/CONFIGURATION.md](../docs/CONFIGURATION.md)
-- [docs/fly-io.md](docs/fly-io.md)
 - [docs/local-dev.md](docs/local-dev.md)
