@@ -68,7 +68,9 @@ else. Blocked from outside, so reachable only on loopback:
 - `/internal/*`
 - relay admin routes (`relay/app/admin.py`)
 - `/v1/connector/setup`, `/v1/connector/phone-pairing-codes`,
-  `/v1/hosts/enrollment-codes`
+  `/v1/hosts/enrollment-codes`, `/v1/hosts/ws` (the connector reaches the relay
+  on loopback through `HERMES_MOBILE_RELAY_INTERNAL_URL`, because the relay
+  hands out its public URL)
 - `/v1/push/*` (unused without APNs)
 - `/v1/talk/*` (live voice is removed)
 
@@ -124,15 +126,22 @@ Three new systemd units, alongside the existing `hermes-gateway`:
 
 ### History from Hermes, not the relay
 
-- Conversation list: `GET /api/sessions?profile=<p>` (newest first), returning
-  each session's id, title, source (`telegram`, `tool`, `cli`…), last activity
-  and message count.
-- Opening a conversation: `GET /api/sessions/<id>/messages?profile=<p>`.
-- Rename and archive use the dashboard's own session endpoints for that
-  profile. Hard delete is not offered.
-- The relay's `conversations` table stops being the source of truth. It keeps
-  only what the relay needs to route a send: the active `(profile, session_id)`
-  per device.
+- Conversation list: the app reads `GET /api/sessions?profile=<p>&order=recent`
+  through the proxy (excluding `cron` and `subagent` sessions), showing each
+  session's title, source (`telegram`, `desktop`, `tool`…) and last activity.
+- Rename and archive use the dashboard's own `PATCH /api/sessions/<id>`
+  (`title`, `archived`) with the profile in the body. Hard delete is not offered.
+- Each relay conversation gains a `profile` and stays bound to one Hermes
+  session (`hermes_session_id`). The relay keeps the turns sent from the app,
+  which is what live streaming and retries rely on, and "current conversation"
+  becomes per agent.
+- Opening a Hermes session from history (`POST /v1/conversations/open`) archives
+  any older relay binding for that session and creates a fresh one. When the
+  app loads it, the relay asks the connector for the session transcript
+  (`session.transcript` RPC → `GET /api/sessions/<id>/messages?profile=<p>`),
+  keeps user and assistant messages from before the binding was created, and
+  puts them ahead of the relay's own messages. Messages added in Telegram after
+  that point appear the next time the session is opened from history.
 
 ### Voice notes
 
