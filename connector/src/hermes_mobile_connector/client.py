@@ -13,6 +13,7 @@ import socket
 import subprocess
 import sys
 import uuid
+from urllib.parse import urlparse, urlunparse
 
 logger = logging.getLogger("hermes.mobile.connector")
 
@@ -208,6 +209,20 @@ OPENAI_REALTIME_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_
 
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def effective_relay_url(state: ConnectorState) -> str:
+    internal = (os.getenv("HERMES_MOBILE_RELAY_INTERNAL_URL") or "").strip().rstrip("/")
+    return internal or state.relay_url.rstrip("/")
+
+
+def effective_websocket_url(state: ConnectorState) -> str:
+    internal = (os.getenv("HERMES_MOBILE_RELAY_INTERNAL_URL") or "").strip().rstrip("/")
+    if not internal:
+        return state.web_socket_url
+    parsed = urlparse(internal)
+    scheme = "wss" if parsed.scheme == "https" else "ws"
+    return urlunparse((scheme, parsed.netloc, f"{parsed.path}/hosts/ws", "", "", ""))
 
 
 @dataclass(frozen=True)
@@ -524,7 +539,7 @@ class HermesMobileConnector:
     def create_phone_pairing_code(self) -> PhonePairingDetails:
         state = self.state_store.load()
         response = httpx.post(
-            f"{state.relay_url.rstrip('/')}/connector/phone-pairing-codes",
+            f"{effective_relay_url(state)}/connector/phone-pairing-codes",
             headers={"Authorization": f"Bearer {state.connector_credential}"},
             timeout=30.0,
         )
@@ -555,7 +570,7 @@ class HermesMobileConnector:
         settings = self.settings_for_state(state)
         metadata = self.metadata(display_name=state.connector_display_name, settings=settings)
         async with websocket_connect(
-            state.web_socket_url,
+            effective_websocket_url(state),
             additional_headers={"Authorization": f"Bearer {state.connector_credential}"},
             max_size=50 * 1024 * 1024,  # 50 MB — job payloads with image attachments can be large
         ) as websocket:
@@ -690,6 +705,10 @@ class HermesMobileConnector:
             job["attachments"] = None  # staged to disk; don't pass raw data downstream
 
         try:
+            if job.get("profile") is not None:
+                runtime = HermesRuntimeAdapter(self.executor_for_state(state))
+                await self._handle_job_cli(websocket, job, runtime)
+                return
             runtime = await self.runtime_adapter_for_state_async(state)
             if not getattr(runtime, "supports_streaming", False):
                 await self._handle_job_cli(websocket, job, runtime)
@@ -820,6 +839,7 @@ class HermesMobileConnector:
                         for item in job.get("history", [])
                     ],
                     session_id=job.get("sessionId"),
+                    profile=str(job.get("profile") or "default"),
                 )
                 return {
                     "type": "job.result",

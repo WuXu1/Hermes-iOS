@@ -787,7 +787,7 @@ def test_hermes_runtime_adapter_preserves_history_and_session(monkeypatch):
     executor = make_executor()
     captured: dict = {}
 
-    def fake_send_message(*, latest_user_message, history, session_id):  # noqa: ANN001
+    def fake_send_message(*, latest_user_message, history, session_id, profile="default"):  # noqa: ANN001
         captured["latest_user_message"] = latest_user_message
         captured["history"] = history
         captured["session_id"] = session_id

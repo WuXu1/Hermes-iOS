@@ -49,6 +49,7 @@ class HermesRuntimeAdapter:
         latest_user_message: str,
         history: list[RuntimeConversationMessage],
         session_id: str | None = None,
+        profile: str = "default",
     ) -> RuntimeTurnResult:
         result = self.executor.send_message(
             latest_user_message=latest_user_message,
@@ -57,6 +58,7 @@ class HermesRuntimeAdapter:
                 for message in history
             ],
             session_id=session_id,
+            profile=profile,
         )
         return RuntimeTurnResult(text=result.text, session_id=result.session_id)
 

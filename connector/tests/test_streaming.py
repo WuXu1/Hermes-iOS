@@ -280,7 +280,7 @@ def test_handle_job_cli_materializes_attachments_for_tool_access(tmp_path):
     captured = {}
 
     class FakeCLIRuntime:
-        def send_text_message(self, *, latest_user_message, history, session_id=None):
+        def send_text_message(self, *, latest_user_message, history, session_id=None, profile="default"):
             captured["latest_user_message"] = latest_user_message
             return type("Result", (), {"text": "Done", "session_id": "sess-cli"})()
 

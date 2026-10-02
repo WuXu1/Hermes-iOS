@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 
+from .profiles import DEFAULT_PROFILE, normalize_profile
 from .state import ConnectorRuntimeConfig
 
 
@@ -32,6 +33,7 @@ class ConnectorHermesSettings:
     hermes_toolsets: str | None
     hermes_source: str
     hermes_history_limit: int
+    hermes_chat_timeout_seconds: int = 900
 
     @classmethod
     def from_env(cls) -> "ConnectorHermesSettings":
@@ -43,6 +45,7 @@ class ConnectorHermesSettings:
             hermes_toolsets=os.getenv("HERMES_TOOLSETS") or None,
             hermes_source=os.getenv("HERMES_SOURCE", "tool"),
             hermes_history_limit=int(os.getenv("HERMES_HISTORY_LIMIT", "20")),
+            hermes_chat_timeout_seconds=int(os.getenv("HERMES_CHAT_TIMEOUT_SECONDS", "900")),
         )
 
     @classmethod
@@ -55,6 +58,7 @@ class ConnectorHermesSettings:
             hermes_toolsets=config.hermes_toolsets,
             hermes_source=config.hermes_source,
             hermes_history_limit=config.hermes_history_limit,
+            hermes_chat_timeout_seconds=getattr(config, "hermes_chat_timeout_seconds", 900),
         )
 
 
@@ -106,6 +110,7 @@ class HermesCLIExecutor:
         latest_user_message: str,
         history: list[HermesConversationMessage],
         session_id: str | None = None,
+        profile: str = DEFAULT_PROFILE,
     ) -> HermesChatResult:
         if shutil.which(self.settings.hermes_command) is None:
             raise RuntimeError(f"Hermes command not found: {self.settings.hermes_command}")
@@ -114,10 +119,13 @@ class HermesCLIExecutor:
             latest_user_message=latest_user_message,
             history=history,
             session_id=session_id,
+            profile=profile,
         )
 
         if response.missing_session and session_id:
-            response = self._send_with_replay(latest_user_message=latest_user_message, history=history)
+            response = self._send_with_replay(
+                latest_user_message=latest_user_message, history=history, profile=profile
+            )
 
         if not response.text:
             raise RuntimeError("Hermes CLI returned an empty response.")
@@ -130,45 +138,50 @@ class HermesCLIExecutor:
         latest_user_message: str,
         history: list[HermesConversationMessage],
         session_id: str | None,
+        profile: str = DEFAULT_PROFILE,
     ) -> CLIHermesResponse:
         if session_id:
-            command = self._build_command(query=latest_user_message, session_id=session_id)
+            command = self._build_command(query=latest_user_message, session_id=session_id, profile=profile)
             return self._run_command(command)
-        return self._send_with_replay(latest_user_message=latest_user_message, history=history)
+        return self._send_with_replay(latest_user_message=latest_user_message, history=history, profile=profile)
 
     def _send_with_replay(
         self,
         *,
         latest_user_message: str,
         history: list[HermesConversationMessage],
+        profile: str = DEFAULT_PROFILE,
     ) -> CLIHermesResponse:
         prompt = self._build_prompt(latest_user_message=latest_user_message, history=history)
-        return self._run_command(self._build_command(query=prompt))
+        return self._run_command(self._build_command(query=prompt, profile=profile))
 
-    def _build_command(self, *, query: str, session_id: str | None = None) -> list[str]:
-        command = [self.settings.hermes_command, "chat", "-Q", "-q", query]
-
+    def _build_command(self, *, query: str, session_id: str | None = None, profile: str | None = None) -> list[str]:
+        name = normalize_profile(profile)
+        command = [self.settings.hermes_command]
+        if name != DEFAULT_PROFILE:
+            command.extend(["-p", name])
+        command.extend(["chat", "-Q", "-q", query])
         if session_id:
             command.extend(["--resume", session_id])
-        if self.settings.hermes_provider:
-            command.extend(["--provider", self.settings.hermes_provider])
-        if self.settings.hermes_model:
-            command.extend(["--model", self.settings.hermes_model])
         if self.settings.hermes_toolsets:
             command.extend(["--toolsets", self.settings.hermes_toolsets])
         if self.settings.hermes_source:
             command.extend(["--source", self.settings.hermes_source])
-
         return command
 
     def _run_command(self, command: list[str]) -> CLIHermesResponse:
-        completed = subprocess.run(
-            command,
-            cwd=self.settings.hermes_workdir or None,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        timeout = self.settings.hermes_chat_timeout_seconds
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=self.settings.hermes_workdir or None,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError(f"Hermes did not finish within {timeout // 60} minutes.") from error
 
         if completed.returncode != 0:
             error_text = completed.stderr.strip() or completed.stdout.strip() or "Hermes CLI request failed."
