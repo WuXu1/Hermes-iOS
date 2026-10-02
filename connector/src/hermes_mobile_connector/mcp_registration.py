@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import io
 import os
 from pathlib import Path
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
@@ -94,18 +97,31 @@ def _load_config(config_path: Path) -> CommentedMap:
         return CommentedMap()
 
     loaded = yaml.load(config_path.read_text(encoding="utf-8"))
+    if loaded is None:
+        return CommentedMap()
     if isinstance(loaded, CommentedMap):
         return loaded
     if isinstance(loaded, dict):
         return CommentedMap(loaded)
-    return CommentedMap()
+    raise ValueError(f"invalid: {config_path} is not a YAML mapping")
 
 
 def _save_config(config_path: Path, config: CommentedMap) -> None:
     yaml = _yaml()
+    buffer = io.StringIO()
+    yaml.dump(config, buffer)  # serialize first: errors surface before any write
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    with config_path.open("w", encoding="utf-8") as handle:
-        yaml.dump(config, handle)
+    mode = stat.S_IMODE(config_path.stat().st_mode) if config_path.exists() else None
+    fd, tmp_name = tempfile.mkstemp(dir=config_path.parent, prefix=config_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(buffer.getvalue())
+        if mode is not None:
+            os.chmod(tmp_name, mode)
+        os.replace(tmp_name, config_path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
 
 
 def _extract_included_tools(entry: dict | None) -> tuple[str, ...]:
@@ -120,9 +136,7 @@ def _extract_included_tools(entry: dict | None) -> tuple[str, ...]:
     return tuple(str(item) for item in include)
 
 
-def _register_in(config_path: Path, *, state_dir: Path, server_name: str) -> MCPRegistrationStatus:
-    hermes_home = config_path.parent
-    config = _load_config(config_path)
+def _apply_registration(config: CommentedMap, *, state_dir: Path, server_name: str) -> str:
     mcp_servers = config.get("mcp_servers")
     if not isinstance(mcp_servers, CommentedMap):
         mcp_servers = CommentedMap(mcp_servers or {})
@@ -150,15 +164,7 @@ def _register_in(config_path: Path, *, state_dir: Path, server_name: str) -> MCP
     tools["prompts"] = False
     tools.pop("exclude", None)
 
-    _save_config(config_path, config)
-    return MCPRegistrationStatus(
-        server_name=server_name,
-        hermes_home=hermes_home,
-        config_path=config_path,
-        command_path=command_path,
-        registered=True,
-        included_tools=tuple(MCP_TOOL_NAMES),
-    )
+    return command_path
 
 
 def _backup(config_path: Path) -> None:
@@ -167,28 +173,49 @@ def _backup(config_path: Path) -> None:
         shutil.copy2(config_path, backup)
 
 
+def _config_paths(profiles: tuple[str, ...]) -> list[Path]:
+    hermes_home = resolve_hermes_home()
+    return [profile_home(hermes_home, profile) / "config.yaml" for profile in profiles]
+
+
 def register_native_mcp_server(
     *, state_dir: Path, profiles: tuple[str, ...] = ("default",), server_name: str = MCP_SERVER_NAME
 ) -> list[MCPRegistrationStatus]:
+    # Resolve, load and mutate everything in memory first so a bad profile changes nothing.
+    pending = []
+    for config_path in _config_paths(profiles):
+        config = _load_config(config_path)
+        command_path = _apply_registration(config, state_dir=state_dir, server_name=server_name)
+        pending.append((config_path, config, command_path))
     statuses = []
-    for profile in profiles:
-        config_path = profile_home(resolve_hermes_home(), profile) / "config.yaml"
+    for config_path, config, command_path in pending:
         _backup(config_path)
-        statuses.append(_register_in(config_path, state_dir=state_dir, server_name=server_name))
+        _save_config(config_path, config)
+        statuses.append(
+            MCPRegistrationStatus(
+                server_name=server_name,
+                hermes_home=config_path.parent,
+                config_path=config_path,
+                command_path=command_path,
+                registered=True,
+                included_tools=tuple(MCP_TOOL_NAMES),
+            )
+        )
     return statuses
 
 
 def unregister_native_mcp_server(*, profiles: tuple[str, ...], server_name: str = MCP_SERVER_NAME) -> list[Path]:
-    changed = []
-    for profile in profiles:
-        config_path = profile_home(resolve_hermes_home(), profile) / "config.yaml"
+    pending = []
+    for config_path in _config_paths(profiles):
         config = _load_config(config_path)
         servers = config.get("mcp_servers")
         if isinstance(servers, dict) and server_name in servers:
             del servers[server_name]
-            _save_config(config_path, config)
-            changed.append(config_path)
-    return changed
+            pending.append((config_path, config))
+    for config_path, config in pending:
+        _backup(config_path)
+        _save_config(config_path, config)
+    return [config_path for config_path, _ in pending]
 
 
 def inspect_native_mcp_registration(*, server_name: str = MCP_SERVER_NAME) -> MCPRegistrationStatus:

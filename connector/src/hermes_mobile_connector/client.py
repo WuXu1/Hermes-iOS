@@ -187,6 +187,7 @@ from .hermes_runner import ConnectorHermesSettings, HermesCLIExecutor
 from .mcp_registration import (
     inspect_native_mcp_registration,
     native_mcp_readiness_message,
+    MCPRegistrationStatus,
     register_native_mcp_server,
     resolve_hermes_home,
     validate_native_mcp_tools,
@@ -1684,17 +1685,26 @@ class HermesMobileConnector:
     @staticmethod
     def _mcp_profiles() -> tuple[str, ...]:
         raw = os.getenv("HERMES_MOBILE_MCP_PROFILES", "default")
-        return tuple(p.strip() for p in raw.split(",") if p.strip())
+        return tuple(p.strip() for p in raw.split(",") if p.strip()) or ("default",)
+
+    def record_mcp_registration(self, registration: MCPRegistrationStatus) -> ConnectorState:
+        state = self.state_store.load()
+        self._apply_mcp_registration(state, registration)
+        return self.state_store.save(state)
+
+    @staticmethod
+    def _apply_mcp_registration(state: ConnectorState, registration: MCPRegistrationStatus) -> None:
+        state.mcp_server_name = registration.server_name
+        state.mcp_configured = True
+        state.mcp_command_path = registration.command_path
+        state.mcp_registered_at = utcnow_iso()
 
     def _configure_native_mcp(self, state: ConnectorState, *, hermes_command: str) -> ConnectorState:
         try:
             registration = register_native_mcp_server(
                 state_dir=self.state_store.state_dir, profiles=self._mcp_profiles()
             )[0]
-            state.mcp_server_name = registration.server_name
-            state.mcp_configured = True
-            state.mcp_command_path = registration.command_path
-            state.mcp_registered_at = utcnow_iso()
+            self._apply_mcp_registration(state, registration)
             state.mcp_last_test_at = utcnow_iso()
             state.mcp_last_test_error = validate_native_mcp_server(
                 hermes_command=hermes_command,

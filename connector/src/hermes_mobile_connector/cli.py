@@ -12,6 +12,7 @@ from pathlib import Path
 
 import httpx
 import qrcode
+from ruamel.yaml import YAMLError
 
 from .client import HermesMobileConnector
 from .mcp_registration import register_native_mcp_server, unregister_native_mcp_server
@@ -627,13 +628,21 @@ def cmd_setup(args: argparse.Namespace, connector: HermesMobileConnector) -> int
 
 def cmd_configure_mcp(args: argparse.Namespace, connector: HermesMobileConnector) -> int:
     profiles = tuple(p.strip() for p in args.profiles.split(",") if p.strip())
-    if args.unregister:
-        for path in unregister_native_mcp_server(profiles=profiles):
-            print(f"Removed Hermes Mobile MCP from {path}")
-        return 0
-    statuses = register_native_mcp_server(state_dir=connector.state_store.state_dir, profiles=profiles)
+    if not profiles:
+        print("error: --profiles must name at least one profile", file=sys.stderr)
+        return 1
+    try:
+        if args.unregister:
+            for path in unregister_native_mcp_server(profiles=profiles):
+                print(f"Removed Hermes Mobile MCP from {path}")
+            return 0
+        statuses = register_native_mcp_server(state_dir=connector.state_store.state_dir, profiles=profiles)
+    except (ValueError, YAMLError, OSError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     for status in statuses:
         print(f"Configured Hermes Mobile MCP in {status.config_path}")
+    connector.record_mcp_registration(statuses[0])
     return 0
 
 
