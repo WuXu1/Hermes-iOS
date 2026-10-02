@@ -14,6 +14,9 @@ import httpx
 DEFAULT_DASHBOARD_URL = "http://127.0.0.1:9119"
 MAX_BINARY_BYTES = 2 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 25.0
+MAX_AUDIO_BYTES = 5 * 1024 * 1024
+TRANSCRIBE_TIMEOUT_SECONDS = 120.0
+TRANSCRIPT_LIMIT = 200
 
 # One path segment: an id, name or slug. It never starts with a dot (so "." and
 # ".." can't match) and allows no "%" escapes.
@@ -174,3 +177,67 @@ async def call_hermes_api(
         "contentType": content_type or "application/octet-stream",
         "base64": base64.b64encode(response.content).decode("ascii"),
     }
+
+
+async def transcribe_audio_via_hermes(
+    data: bytes,
+    mime_type: str,
+    *,
+    profile: str,
+    config: HermesApiConfig,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> str:
+    if len(data) > MAX_AUDIO_BYTES:
+        raise HermesApiError(f"too_large: voice notes are limited to {MAX_AUDIO_BYTES // (1024 * 1024)} MB")
+    if not config.token:
+        raise HermesApiError("unavailable: the Hermes dashboard API is not configured on this host")
+    mime = (mime_type or "audio/m4a").split(";")[0].strip() or "audio/m4a"
+    payload = {"data_url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}", "mime_type": mime}
+    async with httpx.AsyncClient(base_url=config.base_url, transport=transport, timeout=TRANSCRIBE_TIMEOUT_SECONDS) as client:
+        try:
+            response = await client.post(
+                "/api/audio/transcribe",
+                params={"profile": normalize_profile(profile)},
+                json=payload,
+                headers={"X-Hermes-Session-Token": config.token},
+            )
+        except httpx.HTTPError as error:
+            raise HermesApiError(f"unavailable: {error}") from error
+    body = response.json() if response.content else {}
+    if response.status_code != 200:
+        raise HermesApiError(f"failed: {body.get('detail') or 'transcription failed'}")
+    return str(body.get("transcript") or "").strip()
+
+
+async def session_transcript(
+    session_id: str,
+    *,
+    profile: str,
+    config: HermesApiConfig,
+    hermes_home: Path,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> dict:
+    if not re.fullmatch(_SEG, session_id or ""):
+        raise HermesApiError("invalid: bad session id")
+    result = await call_hermes_api(
+        {
+            "method": "GET",
+            "path": f"/api/sessions/{session_id}/messages",
+            "query": {"profile": profile, "limit": str(TRANSCRIPT_LIMIT), "order": "latest"},
+        },
+        config=config,
+        hermes_home=hermes_home,
+        transport=transport,
+    )
+    if result["status"] != 200:
+        raise HermesApiError(f"not_found: session {session_id} is not available")
+    messages = []
+    for item in (result.get("json") or {}).get("messages") or []:
+        role = item.get("role")
+        if role not in {"user", "assistant"} or item.get("display_kind") == "hidden":
+            continue
+        text = str(item.get("display_content") or item.get("content") or "").strip()
+        if not text:
+            continue
+        messages.append({"id": str(item.get("id")), "role": role, "text": text, "timestamp": float(item.get("timestamp") or 0)})
+    return {"sessionId": session_id, "messages": messages}

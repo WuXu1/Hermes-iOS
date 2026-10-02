@@ -175,8 +175,14 @@ def _cached_context_window(hermes_home: Path, model_name: str, base_url: str | N
     return None
 from .git_diff import capture_diff, capture_snapshot
 from .hermes_api_executor import HermesAPIExecutor
-from .audio_transcription import TranscriptionConfig, TranscriptionError, transcribe_audio
-from .hermes_api_proxy import HermesApiConfig, call_hermes_api
+from .hermes_api_proxy import (
+    HermesApiConfig,
+    HermesApiError,
+    call_hermes_api,
+    session_transcript,
+    transcribe_audio_via_hermes,
+)
+from .profiles import normalize_profile, profile_home
 from .hermes_runner import ConnectorHermesSettings, HermesCLIExecutor
 from .mcp_registration import (
     inspect_native_mcp_registration,
@@ -260,7 +266,6 @@ class HermesMobileConnector:
         self._voice_delegate_sessions: dict[str, str] = {}
         self._health_cache: tuple[float, HostRuntimeAdapter | None] = (0.0, None)
         self._HEALTH_CACHE_TTL: float = 30.0
-        self.transcribe_audio = self._transcribe_with_gemini
 
     @property
     def sensor_store(self) -> SensorStore:
@@ -696,6 +701,7 @@ class HermesMobileConnector:
             attachment_context = await self._build_cli_attachment_context(
                 job_id=str(job["id"]),
                 attachments=attachments,
+                profile=str(job.get("profile") or "default"),
             )
             if attachment_context:
                 msg = job.get("latestUserMessage", "")
@@ -823,6 +829,7 @@ class HermesMobileConnector:
                     attachment_context = await self._build_cli_attachment_context(
                         job_id=str(job["id"]),
                         attachments=attachments,
+                        profile=str(job.get("profile") or "default"),
                     )
                     if attachment_context:
                         user_message = (
@@ -864,10 +871,12 @@ class HermesMobileConnector:
             await websocket.send(json.dumps({"type": "heartbeat"}))
 
     @staticmethod
-    async def _transcribe_with_gemini(data: bytes, mime_type: str) -> str:
-        return await transcribe_audio(data, mime_type, config=TranscriptionConfig.from_env())
+    def _profile_home(params: dict) -> Path:
+        return profile_home(resolve_hermes_home(), params.get("profile"))
 
-    async def _build_cli_attachment_context(self, *, job_id: str, attachments: list[dict]) -> str:
+    async def _build_cli_attachment_context(
+        self, *, job_id: str, attachments: list[dict], profile: str = "default"
+    ) -> str:
         attachment_root = self.state_store.state_dir / "attachment_staging" / job_id
         attachment_root.mkdir(parents=True, exist_ok=True)
 
@@ -895,8 +904,10 @@ class HermesMobileConnector:
                 )
             elif mime_type.startswith("audio/"):
                 try:
-                    transcript = await self.transcribe_audio(raw_data, mime_type)
-                except TranscriptionError as exc:
+                    transcript = await transcribe_audio_via_hermes(
+                        raw_data, mime_type, profile=profile, config=HermesApiConfig.from_env()
+                    )
+                except HermesApiError as exc:
                     lines.append(
                         f"- Audio attachment {filename} could not be transcribed: {exc}. "
                         "Tell the user; you can't listen to it yourself."
@@ -975,10 +986,26 @@ class HermesMobileConnector:
             elif method == "hermes.api":
                 result = await call_hermes_api(params, config=HermesApiConfig.from_env(), hermes_home=resolve_hermes_home())
             elif method == "memory.read":
-                result = read_memory(resolve_hermes_home())
+                result = read_memory(self._profile_home(params))
             elif method == "memory.write":
                 result = write_memory(
-                    resolve_hermes_home(), str(params.get("kind") or ""), str(params.get("content") or "")
+                    self._profile_home(params), str(params.get("kind") or ""), str(params.get("content") or "")
+                )
+            elif method == "audio.transcribe":
+                data = base64.b64decode(str(params.get("data") or ""), validate=True)
+                transcript = await transcribe_audio_via_hermes(
+                    data,
+                    str(params.get("mimeType") or "audio/m4a"),
+                    profile=normalize_profile(params.get("profile")),
+                    config=HermesApiConfig.from_env(),
+                )
+                result = {"transcript": transcript}
+            elif method == "session.transcript":
+                result = await session_transcript(
+                    str(params.get("sessionId") or ""),
+                    profile=normalize_profile(params.get("profile")),
+                    config=HermesApiConfig.from_env(),
+                    hermes_home=resolve_hermes_home(),
                 )
             else:
                 raise RuntimeError(f"Unsupported RPC method: {method}")

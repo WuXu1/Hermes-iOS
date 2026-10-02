@@ -1,4 +1,4 @@
-"""Read and write Hermes's built-in memory files for the default profile."""
+"""Read and write a Hermes profile's built-in memory files (MEMORY.md, USER.md)."""
 
 from __future__ import annotations
 
