@@ -176,3 +176,9 @@ class InternalInboxCreateRequest(BaseModel):
     priority: str = "normal"
     payload: dict[str, str] | None = None
     expiresAt: datetime | None = None
+
+
+class AudioTranscribeBody(BaseModel):
+    profile: str = Field(default="default", pattern=PROFILE_PATTERN)
+    mimeType: str = Field(default="audio/m4a", max_length=100)
+    data: str = Field(max_length=7_100_000)  # 5 MB of audio as base64

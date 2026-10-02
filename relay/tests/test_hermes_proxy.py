@@ -164,4 +164,4 @@ def test_memory_read_and_write(tmp_path):
 
         write = client.put("/v1/hermes/memory/user", json={"content": "Max\n"}, headers=auth(token))
         assert write.json()["data"] == {"content": "Max\n", "updatedAt": 1.0}
-        assert calls[-1] == ("memory.write", {"kind": "user", "content": "Max\n"})
+        assert calls[-1] == ("memory.write", {"profile": "default", "kind": "user", "content": "Max\n"})

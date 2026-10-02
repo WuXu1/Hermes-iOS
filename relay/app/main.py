@@ -28,6 +28,7 @@ from .models import Conversation, HermesHost, Message, PushRegistration
 from .pairing import HostSetupCodePayload, format_phone_pairing_code, build_host_setup_code
 from .rate_limit import PhonePairingRateLimiter
 from .schemas import (
+    AudioTranscribeBody,
     PROFILE_PATTERN,
     ConversationCreateBody,
     ConversationOpenBody,
@@ -953,17 +954,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=status_code, content={"detail": detail})
 
     @app.get("/v1/hermes/memory")
-    async def hermes_memory(auth: AuthContext = Depends(get_auth_context)) -> dict:
-        return success(await call_connector(auth.user.id, "memory.read", {}))
+    async def hermes_memory(
+        profile: str = Query("default", pattern=PROFILE_PATTERN),
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> dict:
+        return success(await call_connector(auth.user.id, "memory.read", {"profile": profile}))
 
     @app.put("/v1/hermes/memory/{kind}")
     async def hermes_memory_write(
         kind: str,
         body: MemoryWriteBody,
+        profile: str = Query("default", pattern=PROFILE_PATTERN),
         auth: AuthContext = Depends(get_auth_context),
     ) -> dict:
         return success(
-            await call_connector(auth.user.id, "memory.write", {"kind": kind, "content": body.content})
+            await call_connector(auth.user.id, "memory.write", {"profile": profile, "kind": kind, "content": body.content})
+        )
+
+    @app.post("/v1/audio/transcribe")
+    async def audio_transcribe(body: AudioTranscribeBody, auth: AuthContext = Depends(get_auth_context)) -> dict:
+        return success(
+            await call_connector(
+                auth.user.id,
+                "audio.transcribe",
+                {"profile": body.profile, "mimeType": body.mimeType, "data": body.data},
+                timeout_seconds=120.0,
+            )
         )
 
     @app.get("/v1/commands")
@@ -1514,8 +1530,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         return success({"sent": sent, "total": len(registrations)})
 
+    TRANSCRIPT_NAMESPACE = uuid.UUID("5b0f5f7e-8a51-4b9e-9a8e-2f4f1d7c3a10")
+
+    async def transcript_messages(user_id: str, conversation) -> list[dict]:
+        if not conversation.hermes_session_id:
+            return []
+        try:
+            transcript = await app.state.connector_rpc(
+                user_id,
+                method="session.transcript",
+                params={"profile": conversation.profile, "sessionId": conversation.hermes_session_id},
+                timeout_seconds=15.0,
+            )
+        except Exception:  # noqa: BLE001 - history is best effort; the chat still works
+            return []
+        cutoff = conversation.created_at.replace(tzinfo=conversation.created_at.tzinfo or timezone.utc).timestamp()
+        messages = []
+        for item in transcript.get("messages") or []:
+            timestamp = float(item.get("timestamp") or 0)
+            if timestamp >= cutoff:
+                continue
+            role = "user" if item.get("role") == "user" else "hermes"
+            messages.append({
+                "id": uuid.uuid5(TRANSCRIPT_NAMESPACE, f"{conversation.profile}:{conversation.hermes_session_id}:{item.get('id')}"),
+                "role": role,
+                "text": str(item.get("text") or ""),
+                "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc),
+                "deliveryStatus": "sent" if role == "user" else "delivered",
+            })
+        return messages
+
     @app.get("/v1/conversations/current")
-    def current_conversation(
+    async def current_conversation(
         profile: str = Query("default", pattern=PROFILE_PATTERN),
         auth: AuthContext = Depends(get_auth_context),
         db: Session = Depends(get_db),
@@ -1523,7 +1569,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         conversation = get_or_create_current_conversation(db, user_id=auth.user.id, profile=profile)
         messages = list_conversation_messages(db, conversation_id=conversation.id)
         jobs = list_message_jobs_for_conversation(db, conversation_id=conversation.id)
-        return success({"conversation": serialize_conversation(conversation, messages, jobs=jobs)})
+        serialized = serialize_conversation(conversation, messages, jobs=jobs)
+        earlier = await transcript_messages(auth.user.id, conversation)
+        if earlier:
+            serialized["messages"] = earlier + serialized["messages"]
+        return success({"conversation": serialized})
 
     @app.post("/v1/conversations/current/clear")
     def clear_current_conversation(
