@@ -905,7 +905,11 @@ class HermesMobileConnector:
             elif mime_type.startswith("audio/"):
                 try:
                     transcript = await transcribe_audio_via_hermes(
-                        raw_data, mime_type, profile=profile, config=HermesApiConfig.from_env()
+                        raw_data,
+                        mime_type,
+                        profile=profile,
+                        config=HermesApiConfig.from_env(),
+                        hermes_home=resolve_hermes_home(),
                     )
                 except HermesApiError as exc:
                     lines.append(
@@ -998,6 +1002,7 @@ class HermesMobileConnector:
                     str(params.get("mimeType") or "audio/m4a"),
                     profile=normalize_profile(params.get("profile")),
                     config=HermesApiConfig.from_env(),
+                    hermes_home=resolve_hermes_home(),
                 )
                 result = {"transcript": transcript}
             elif method == "session.transcript":

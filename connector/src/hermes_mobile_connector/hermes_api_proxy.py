@@ -185,25 +185,36 @@ async def transcribe_audio_via_hermes(
     *,
     profile: str,
     config: HermesApiConfig,
+    hermes_home: Path,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> str:
     if len(data) > MAX_AUDIO_BYTES:
         raise HermesApiError(f"too_large: voice notes are limited to {MAX_AUDIO_BYTES // (1024 * 1024)} MB")
     if not config.token:
         raise HermesApiError("unavailable: the Hermes dashboard API is not configured on this host")
+    try:
+        profile_home(hermes_home, profile)
+        profile_name = normalize_profile(profile)
+    except ValueError as error:
+        raise HermesApiError(str(error)) from error
     mime = (mime_type or "audio/m4a").split(";")[0].strip() or "audio/m4a"
     payload = {"data_url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}", "mime_type": mime}
     async with httpx.AsyncClient(base_url=config.base_url, transport=transport, timeout=TRANSCRIBE_TIMEOUT_SECONDS) as client:
         try:
             response = await client.post(
                 "/api/audio/transcribe",
-                params={"profile": normalize_profile(profile)},
+                params={"profile": profile_name},
                 json=payload,
                 headers={"X-Hermes-Session-Token": config.token},
             )
         except httpx.HTTPError as error:
             raise HermesApiError(f"unavailable: {error}") from error
-    body = response.json() if response.content else {}
+    try:
+        body = response.json() if response.content else {}
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
     if response.status_code != 200:
         raise HermesApiError(f"failed: {body.get('detail') or 'transcription failed'}")
     return str(body.get("transcript") or "").strip()

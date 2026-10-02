@@ -24,7 +24,7 @@ def _context(tmp_path, attachments, transcribe=None, monkeypatch=None, profile="
 def test_audio_is_transcribed_into_the_message(tmp_path, monkeypatch):
     calls = []
 
-    async def transcribe(data, mime_type, *, profile, config):
+    async def transcribe(data, mime_type, *, profile, config, hermes_home):
         calls.append((data, mime_type, profile))
         return "Buy oat milk on Friday."
 
@@ -36,7 +36,7 @@ def test_audio_is_transcribed_into_the_message(tmp_path, monkeypatch):
 
 
 def test_failed_transcription_is_reported(tmp_path, monkeypatch):
-    async def transcribe(data, mime_type, *, profile, config):
+    async def transcribe(data, mime_type, *, profile, config, hermes_home):
         raise HermesApiError("unavailable: transcription backend is down")
 
     context = _context(tmp_path, [_attachment("memo.m4a", "audio/x-m4a")], transcribe, monkeypatch)
@@ -54,7 +54,7 @@ def test_documents_point_to_read_file(tmp_path):
 
 
 def test_images_are_left_to_the_main_model(tmp_path, monkeypatch):
-    async def transcribe(data, mime_type, *, profile, config):
+    async def transcribe(data, mime_type, *, profile, config, hermes_home):
         raise AssertionError("images must never be sent for transcription")
 
     context = _context(tmp_path, [_attachment("photo.jpg", "image/jpeg")], transcribe, monkeypatch)
