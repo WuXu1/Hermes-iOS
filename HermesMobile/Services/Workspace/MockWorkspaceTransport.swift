@@ -126,12 +126,6 @@ final class MockWorkspaceTransport: WorkspaceTransport {
             try updateTask(id) { $0.assignee = reassign.profile }
             return IgnoredResponse()
         }
-        if let id = route(.delete, "\(kanban)/tasks/*")?.first {
-            for index in board.columns.indices {
-                board.columns[index].tasks.removeAll { $0.id == id }
-            }
-            return IgnoredResponse()
-        }
         if route(.get, "\(kanban)/attachments/*") != nil {
             let text = "# Sample output\n\n| date | amount | note |\n|---|---|---|\n| 2026-09-01 | -12.40 | Coffee |\n| 2026-09-02 | -54.00 | Groceries |\n"
             return HermesFilePayload(contentType: "text/markdown", base64: Data(text.utf8).base64EncodedString())
@@ -139,12 +133,6 @@ final class MockWorkspaceTransport: WorkspaceTransport {
         if let name = route(.get, "hermes/api/profiles/*/soul")?.first {
             return SoulBody(content: souls[name] ?? "You are the \(name) on the user's Hermes team.")
         }
-        if let name = route(.put, "hermes/api/profiles/*/soul")?.first {
-            souls[name] = try decode(body, as: SoulBody.self).content
-            return IgnoredResponse()
-        }
-        if route(.put, "hermes/api/profiles/*/description") != nil { return IgnoredResponse() }
-
         // Automations
         if route(.get, "\(cron)/jobs") != nil { return jobs }
         if route(.get, "\(cron)/blueprints") != nil { return try fixture("cron_blueprints") as CronBlueprintsResponse }
@@ -166,10 +154,6 @@ final class MockWorkspaceTransport: WorkspaceTransport {
                 jobs[index].enabled = action == "resume"
                 jobs[index].state = action == "resume" ? "scheduled" : "paused"
             }
-            return IgnoredResponse()
-        }
-        if let id = route(.delete, "\(cron)/jobs/*")?.first {
-            jobs.removeAll { $0.id == id }
             return IgnoredResponse()
         }
         if route(.get, "\(cron)/jobs/*/runs") != nil { return try fixture("cron_runs") as CronRunsResponse }

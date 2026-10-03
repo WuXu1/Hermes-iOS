@@ -4,9 +4,17 @@ import SwiftUI
 struct HermesOverviewSection: View {
     @Environment(AppContainer.self) private var container
 
+    private struct AgentUsage: Identifiable {
+        let name: String
+        var model: String?
+        var cost: Double?
+        var id: String { name }
+    }
+
+    @Environment(AgentStore.self) private var agents
+
     @State private var status: HermesStatus?
-    @State private var model: HermesModelInfo?
-    @State private var usage: HermesUsage?
+    @State private var rows: [AgentUsage] = []
     @State private var isOffline = false
 
     var body: some View {
@@ -19,7 +27,7 @@ struct HermesOverviewSection: View {
                         .frame(width: 40, height: 40)
                         .background(Circle().fill(Design.Brand.accent.opacity(0.14)))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(model?.model ?? "Hermes Agent")
+                        Text("Hermes Agent")
                             .font(.headline.monospaced())
                             .foregroundStyle(Design.Colors.textPrimary)
                         Text(subtitle)
@@ -33,27 +41,44 @@ struct HermesOverviewSection: View {
                     )
                 }
 
-                if let usage {
-                    HStack(spacing: Design.Spacing.sm) {
-                        stat(usage.totals.totalEstimatedCost.formatted(.currency(code: "USD").precision(.fractionLength(2))), label: "Cost, 7 days")
-                        stat("\(usage.totals.totalSessions)", label: "Sessions")
-                        stat(Self.compact(usage.totals.totalInput + usage.totals.totalOutput), label: "Tokens")
+                VStack(spacing: Design.Spacing.sm) {
+                    ForEach(rows) { row in
+                        let style = RoleStyle.forProfile(row.name)
+                        HStack(spacing: Design.Spacing.sm) {
+                            RoleAvatar(style: style, size: .small, isLive: false)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(style.displayName)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Design.Colors.textPrimary)
+                                if let model = row.model {
+                                    Text(model)
+                                        .font(.caption.monospaced())
+                                        .foregroundStyle(Design.Colors.textTertiary)
+                                }
+                            }
+                            Spacer()
+                            Text(row.cost.map(Self.money) ?? "-")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(Design.Colors.textSecondary)
+                        }
+                    }
+                    if !rows.isEmpty {
+                        Divider().overlay(Design.Colors.hairline)
+                        HStack {
+                            Text("Total, 7 days")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Design.Colors.textPrimary)
+                            Spacer()
+                            Text(Self.money(rows.compactMap(\.cost).reduce(0, +)))
+                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(Design.Colors.textPrimary)
+                        }
                     }
                 }
 
-                if let capabilities = model?.capabilities {
-                    HStack(spacing: Design.Spacing.xs) {
-                        if let context = model?.effectiveContextLength {
-                            StatusPill(label: "\(Self.compact(context)) context", color: Design.Colors.textSecondary)
-                        }
-                        if capabilities.supportsVision == true {
-                            StatusPill(label: "Vision", color: Design.Colors.textSecondary, systemImage: "eye")
-                        }
-                        if capabilities.supportsTools == true {
-                            StatusPill(label: "Tools", color: Design.Colors.textSecondary, systemImage: "wrench.and.screwdriver")
-                        }
-                    }
-                }
+                Text("This iPhone is paired with your Hermes server. To unpair a lost phone, revoke it on the server (see the runbook).")
+                    .font(.caption)
+                    .foregroundStyle(Design.Colors.textTertiary)
             }
         }
         .task { await load() }
@@ -61,40 +86,35 @@ struct HermesOverviewSection: View {
 
     private var subtitle: String {
         var parts: [String] = []
-        if let provider = model?.provider { parts.append(Self.providerNames[provider] ?? provider.capitalized) }
         if let version = status?.version { parts.append("Hermes \(version)") }
         if let profiles = status?.profiles, profiles.count > 1 { parts.append("\(profiles.count) profiles") }
         return parts.isEmpty ? "Your Hermes host" : parts.joined(separator: " · ")
     }
 
-    private func stat(_ value: String, label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .font(.title3.weight(.bold).monospacedDigit())
-                .fontDesign(.rounded)
-                .foregroundStyle(Design.Colors.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(Design.Colors.textTertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private static func money(_ value: Double) -> String {
+        value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
+    }
+
+    private static func usage(for name: String, api: HermesWorkspaceAPI) async -> AgentUsage {
+        let model = try? await api.modelInfo(profile: name)
+        let usage = try? await api.usage(days: 7, profile: name)
+        return AgentUsage(name: name, model: model?.model, cost: usage?.totals.totalEstimatedCost)
     }
 
     private func load() async {
         let api = container.workspaceAPI
         do {
-            async let status = api.status()
-            async let model = api.modelInfo()
-            async let usage = api.usage(days: 7)
-            self.status = try await status
-            self.model = try await model
-            self.usage = try? await usage
+            status = try await api.status()
             isOffline = false
         } catch {
             isOffline = true
+            return
         }
+        let names = agents.ordered.map(\.name)
+        let tasks = names.map { name in Task { await Self.usage(for: name, api: api) } }
+        var loaded: [AgentUsage] = []
+        for task in tasks { loaded.append(await task.value) }
+        rows = loaded
     }
 
     private static let providerNames = [

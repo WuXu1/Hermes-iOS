@@ -107,10 +107,13 @@ struct JobRow: View {
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                Text(job.displayName)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(Design.Colors.textPrimary)
-                    .lineLimit(2)
+                HStack(spacing: Design.Spacing.xs) {
+                    RoleAvatar(style: RoleStyle.forProfile(job.profile ?? "default"), size: .small, isLive: false)
+                    Text(job.displayName)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Design.Colors.textPrimary)
+                        .lineLimit(2)
+                }
                 Text(job.scheduleText)
                     .font(.subheadline)
                     .foregroundStyle(Design.Colors.textSecondary)
@@ -125,10 +128,6 @@ struct JobRow: View {
                     Text(job.isPaused ? "Paused" : "Next \(RelativeTime.future(job.nextRunAt))")
                         .font(.caption)
                         .foregroundStyle(Design.Colors.textTertiary)
-                    if let profile = job.profile, profile != RoleStyle.defaultProfileName {
-                        RoleAvatar(style: RoleStyle.forProfile(profile), size: .small)
-                            .scaleEffect(0.8)
-                    }
                 }
             }
             Spacer(minLength: 0)

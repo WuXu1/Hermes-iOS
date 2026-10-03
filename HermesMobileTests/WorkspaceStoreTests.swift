@@ -239,4 +239,41 @@ struct LibraryAndAutomationsStoreTests {
         #expect(store.jobs.contains { $0.name == "Stretch" })
         #expect(store.blueprints.count == 4)
     }
+
+    @Test func jobActionsCarryTheJobsAgent() async throws {
+        let transport = MockWorkspaceTransport()
+        let api = HermesWorkspaceAPI(transport: transport)
+        let jobs = try await api.jobs()
+        let id = try #require(jobs.first?.id)
+
+        try await api.trigger(jobID: id, profile: "coach")
+        #expect(transport.lastQuery == ["profile": "coach"])
+        try await api.pause(jobID: id, profile: nil)
+        #expect(transport.lastQuery == [:])
+        try await api.resume(jobID: id, profile: "default")
+        #expect(transport.lastQuery == [:])
+    }
+
+    @Test func libraryCallsCarryTheSelectedAgent() async {
+        let transport = MockWorkspaceTransport()
+        let store = LibraryStore(api: HermesWorkspaceAPI(transport: transport))
+        store.profile = "tutor"
+        await store.refresh()
+        #expect(transport.lastQuery == ["profile": "tutor"])
+    }
+
+    @Test func lockedSkillCannotBeSwitchedOff() async {
+        let transport = MockWorkspaceTransport()
+        let store = LibraryStore(api: HermesWorkspaceAPI(transport: transport))
+        store.setSkillsForTesting([
+            HermesSkill(name: "coach", description: nil, category: nil, enabled: true, usage: nil, provenance: nil, locked: true)
+        ])
+        let requestsBefore = transport.requests.count
+
+        let changed = await store.setSkill(store.skills[0], enabled: false)
+
+        #expect(!changed)
+        #expect(store.skills[0].enabled)
+        #expect(transport.requests.count == requestsBefore)
+    }
 }

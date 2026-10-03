@@ -57,10 +57,6 @@ struct HermesWorkspaceAPI {
         try await transport.perform(.post, "\(Self.kanban)/tasks/\(taskID)/reassign", body: Reassign(profile: profile))
     }
 
-    func deleteTask(id: String) async throws {
-        try await transport.perform(.delete, "\(Self.kanban)/tasks/\(id)")
-    }
-
     func attachment(id: Int) async throws -> HermesFilePayload {
         try await transport.get("\(Self.kanban)/attachments/\(id)")
     }
@@ -69,16 +65,6 @@ struct HermesWorkspaceAPI {
         struct Soul: Decodable { let content: String? }
         let response: Soul = try await transport.get("hermes/api/profiles/\(profile)/soul")
         return response.content ?? ""
-    }
-
-    func updateSoul(profile: String, content: String) async throws {
-        struct Soul: Encodable { let content: String }
-        try await transport.perform(.put, "hermes/api/profiles/\(profile)/soul", body: Soul(content: content))
-    }
-
-    func updateDescription(profile: String, _ description: String) async throws {
-        struct Description: Encodable { let description: String }
-        try await transport.perform(.put, "hermes/api/profiles/\(profile)/description", body: Description(description: description))
     }
 
     // MARK: Automations
@@ -104,55 +90,51 @@ struct HermesWorkspaceAPI {
         )
     }
 
-    func pause(jobID: String) async throws {
-        try await transport.perform(.post, "\(Self.cron)/jobs/\(jobID)/pause")
+    func pause(jobID: String, profile: String?) async throws {
+        try await transport.perform(.post, "\(Self.cron)/jobs/\(jobID)/pause", query: Self.profileQuery(profile))
     }
 
-    func resume(jobID: String) async throws {
-        try await transport.perform(.post, "\(Self.cron)/jobs/\(jobID)/resume")
+    func resume(jobID: String, profile: String?) async throws {
+        try await transport.perform(.post, "\(Self.cron)/jobs/\(jobID)/resume", query: Self.profileQuery(profile))
     }
 
-    func trigger(jobID: String) async throws {
-        try await transport.perform(.post, "\(Self.cron)/jobs/\(jobID)/trigger")
+    func trigger(jobID: String, profile: String?) async throws {
+        try await transport.perform(.post, "\(Self.cron)/jobs/\(jobID)/trigger", query: Self.profileQuery(profile))
     }
 
-    func deleteJob(id: String) async throws {
-        try await transport.perform(.delete, "\(Self.cron)/jobs/\(id)")
-    }
-
-    func runs(jobID: String) async throws -> [CronRun] {
-        let response: CronRunsResponse = try await transport.get("\(Self.cron)/jobs/\(jobID)/runs")
+    func runs(jobID: String, profile: String?) async throws -> [CronRun] {
+        let response: CronRunsResponse = try await transport.get("\(Self.cron)/jobs/\(jobID)/runs", query: Self.profileQuery(profile))
         return response.runs
     }
 
     /// A cron run is a Hermes session; its output is the final assistant reply.
-    func runOutput(runID: String) async throws -> String? {
-        let response: SessionMessagesResponse = try await transport.get("hermes/api/sessions/\(runID)/messages")
+    func runOutput(runID: String, profile: String?) async throws -> String? {
+        let response: SessionMessagesResponse = try await transport.get("hermes/api/sessions/\(runID)/messages", query: Self.profileQuery(profile))
         return response.finalReply
     }
 
     // MARK: Library
 
-    func memory() async throws -> HermesMemory {
-        try await transport.get("hermes/memory")
+    func memory(profile: String) async throws -> HermesMemory {
+        try await transport.get("hermes/memory", query: ["profile": profile])
     }
 
     @discardableResult
-    func saveMemory(_ kind: HermesMemoryKind, content: String) async throws -> HermesMemoryDocument {
-        try await transport.send(.put, "hermes/memory/\(kind.rawValue)", query: [:], body: MemoryWrite(content: content))
+    func saveMemory(_ kind: HermesMemoryKind, content: String, profile: String) async throws -> HermesMemoryDocument {
+        try await transport.send(.put, "hermes/memory/\(kind.rawValue)", query: ["profile": profile], body: MemoryWrite(content: content))
     }
 
-    func skills() async throws -> [HermesSkill] {
-        try await transport.get("hermes/api/skills")
+    func skills(profile: String) async throws -> [HermesSkill] {
+        try await transport.get("hermes/api/skills", query: ["profile": profile])
     }
 
-    func skillContent(name: String) async throws -> String {
-        let response: SkillContent = try await transport.get("hermes/api/skills/content", query: ["name": name])
+    func skillContent(name: String, profile: String) async throws -> String {
+        let response: SkillContent = try await transport.get("hermes/api/skills/content", query: ["name": name, "profile": profile])
         return response.content
     }
 
-    func setSkill(name: String, enabled: Bool) async throws {
-        try await transport.perform(.put, "hermes/api/skills/toggle", body: SkillToggle(name: name, enabled: enabled))
+    func setSkill(name: String, enabled: Bool, profile: String) async throws {
+        try await transport.perform(.put, "hermes/api/skills/toggle", query: ["profile": profile], body: SkillToggle(name: name, enabled: enabled))
     }
 
     // MARK: Status
@@ -161,12 +143,12 @@ struct HermesWorkspaceAPI {
         try await transport.get("hermes/api/status")
     }
 
-    func modelInfo() async throws -> HermesModelInfo {
-        try await transport.get("hermes/api/model/info")
+    func modelInfo(profile: String?) async throws -> HermesModelInfo {
+        try await transport.get("hermes/api/model/info", query: Self.profileQuery(profile))
     }
 
-    func usage(days: Int) async throws -> HermesUsage {
-        try await transport.get("hermes/api/analytics/usage", query: ["days": String(days)])
+    func usage(days: Int, profile: String?) async throws -> HermesUsage {
+        try await transport.get("hermes/api/analytics/usage", query: ["days": String(days)].merging(Self.profileQuery(profile)) { $1 })
     }
 
     // MARK: Conversations (Hermes sessions for one agent)

@@ -12,7 +12,6 @@ struct TaskDetailScreen: View {
     @State private var isBriefExpanded = false
     @State private var composer: ComposerMode?
     @State private var openedAttachment: KanbanAttachment?
-    @State private var confirmDelete = false
     @State private var isWorking = false
 
     enum ComposerMode: String, Identifiable {
@@ -57,17 +56,6 @@ struct TaskDetailScreen: View {
         }
         .sheet(item: $openedAttachment) { attachment in
             AttachmentSheet(attachment: attachment)
-        }
-        .confirmationDialog("Delete this task?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                guard let task else { return }
-                perform("Task deleted", systemImage: "trash") {
-                    try await store.delete(task)
-                    dismiss()
-                }
-            }
-        } message: {
-            Text("The task, its comments and its attachments are removed from the board.")
         }
     }
 
@@ -264,7 +252,6 @@ struct TaskDetailScreen: View {
                     UIPasteboard.general.string = task.id
                     toasts.show("Copied \(task.id)", systemImage: "doc.on.doc")
                 }
-                Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
             } label: {
                 Image(systemName: "ellipsis")
             }

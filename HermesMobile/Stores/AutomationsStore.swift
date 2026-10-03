@@ -52,27 +52,22 @@ final class AutomationsStore {
 
     func togglePause(_ job: CronJob) async throws {
         if job.isPaused {
-            try await api.resume(jobID: job.id)
+            try await api.resume(jobID: job.id, profile: job.profile)
         } else {
-            try await api.pause(jobID: job.id)
+            try await api.pause(jobID: job.id, profile: job.profile)
         }
         await refresh()
     }
 
     func runNow(_ job: CronJob) async throws {
-        try await api.trigger(jobID: job.id)
-    }
-
-    func delete(_ job: CronJob) async throws {
-        try await api.deleteJob(id: job.id)
-        await refresh()
+        try await api.trigger(jobID: job.id, profile: job.profile)
     }
 
     func runs(for job: CronJob) async throws -> [CronRun] {
-        try await api.runs(jobID: job.id)
+        try await api.runs(jobID: job.id, profile: job.profile)
     }
 
-    func output(for run: CronRun) async throws -> String? {
-        try await api.runOutput(runID: run.id)
+    func output(for run: CronRun, profile: String?) async throws -> String? {
+        try await api.runOutput(runID: run.id, profile: profile)
     }
 }

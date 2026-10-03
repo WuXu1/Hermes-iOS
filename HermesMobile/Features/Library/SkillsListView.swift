@@ -40,6 +40,11 @@ struct SkillsListView: View {
                         Text(skill.name)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(skill.enabled ? Design.Colors.textPrimary : Design.Colors.textTertiary)
+                        if skill.isLocked {
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Design.Colors.textTertiary)
+                        }
                         if let usage = skill.usage, usage > 0 {
                             Text("\(usage)×")
                                 .font(.caption2.weight(.semibold).monospacedDigit())
@@ -70,6 +75,8 @@ struct SkillsListView: View {
             ))
             .labelsHidden()
             .tint(Design.Brand.accent)
+            .disabled(skill.isLocked)
+            .accessibilityLabel(skill.isLocked ? "Role skill, always on" : skill.name)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)

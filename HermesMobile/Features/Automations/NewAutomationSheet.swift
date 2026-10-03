@@ -5,7 +5,7 @@ struct NewAutomationSheet: View {
     var initialBlueprintKey: String?
 
     @Environment(AutomationsStore.self) private var store
-    @Environment(TeamStore.self) private var teamStore
+    @Environment(AgentStore.self) private var agents
     @Environment(ToastCenter.self) private var toasts
     @Environment(\.dismiss) private var dismiss
 
@@ -33,7 +33,7 @@ struct NewAutomationSheet: View {
     @State private var time = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var weekday = 1
     @State private var customCron = "0 8 * * *"
-    @State private var profile = RoleStyle.defaultProfileName
+    @State private var profile = ""
     @State private var isSubmitting = false
 
     var body: some View {
@@ -85,6 +85,7 @@ struct NewAutomationSheet: View {
                 }
             }
             .task {
+                if profile.isEmpty { profile = agents.selected }
                 if store.blueprints.isEmpty { await store.refresh() }
                 if let key = initialBlueprintKey, let match = store.blueprints.first(where: { $0.key == key }) {
                     select(match)
@@ -109,6 +110,9 @@ struct NewAutomationSheet: View {
                 }
             }
             .cardSurface()
+            Text("Blueprints run as Commander")
+                .font(.caption)
+                .foregroundStyle(Design.Colors.textTertiary)
             if let human = blueprint.scheduleHuman {
                 Label("Runs \(human)", systemImage: "calendar")
                     .font(.footnote)
@@ -244,7 +248,7 @@ struct NewAutomationSheet: View {
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
                 SectionHeader(title: "Who runs it")
                 Picker("Role", selection: $profile) {
-                    ForEach(teamStore.roles) { role in
+                    ForEach(agents.ordered) { role in
                         Text(RoleStyle.forProfile(role.name).displayName).tag(role.name)
                     }
                 }
@@ -297,7 +301,7 @@ struct NewAutomationSheet: View {
                             prompt: trimmedPrompt,
                             schedule: preset.expression
                         ),
-                        profile: profile
+                        profile: profile.isEmpty ? agents.selected : profile
                     )
                 }
                 dismiss()

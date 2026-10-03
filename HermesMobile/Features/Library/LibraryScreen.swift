@@ -7,12 +7,21 @@ struct LibraryScreen: View {
     }
 
     @Environment(LibraryStore.self) private var store
+    @Environment(AgentStore.self) private var agents
     @State private var section: Section = .memory
 
     var body: some View {
         @Bindable var store = store
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Design.Spacing.lg) {
+                Picker("Agent", selection: $store.profile) {
+                    ForEach(agents.ordered) { agent in
+                        Text(RoleStyle.forProfile(agent.name).displayName).tag(agent.name)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("library.agent")
+
                 Picker("Section", selection: $section) {
                     ForEach(Section.allCases, id: \.self) { Text($0.rawValue) }
                 }
@@ -52,13 +61,19 @@ struct LibraryScreen: View {
         .onChange(of: store.skillQuery) { _, query in
             if !query.isEmpty { section = .skills }
         }
+        .onChange(of: store.profile) { _, _ in
+            Task { await store.refresh() }
+        }
         .refreshable { await store.refresh() }
-        .task { await store.refresh() }
+        .task {
+            if !store.hasLoaded { store.profile = agents.selected }
+            await store.refresh()
+        }
     }
 
     private var memory: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            Text("Hermes keeps these notes between chats and uses them as context. Edit them to correct or add anything.")
+            Text("This agent keeps these notes between chats and uses them as context. Edit them to correct or add anything.")
                 .font(.footnote)
                 .foregroundStyle(Design.Colors.textTertiary)
             ForEach(HermesMemoryKind.allCases) { kind in

@@ -5,12 +5,8 @@ struct RoleSheet: View {
     let profile: HermesProfile
 
     @Environment(TeamStore.self) private var store
-    @Environment(ToastCenter.self) private var toasts
     @Environment(TabRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
-
-    @State private var description = ""
-    @State private var isSavingDescription = false
 
     private var style: RoleStyle { RoleStyle.forProfile(profile.name) }
 
@@ -35,21 +31,15 @@ struct RoleSheet: View {
                     if !profile.isDefault {
                         VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                             SectionHeader(title: "What this role is for")
-                            TextEditor(text: $description)
+                            Text(profile.description ?? "")
                                 .font(.subheadline)
-                                .scrollContentBackground(.hidden)
-                                .frame(minHeight: 90)
-                                .padding(Design.Spacing.xs)
+                                .foregroundStyle(Design.Colors.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(Design.Spacing.sm)
                                 .cardSurface(cornerRadius: Design.CornerRadius.md)
                             Text("The chief of staff uses this to decide who gets which task.")
                                 .font(.caption)
                                 .foregroundStyle(Design.Colors.textTertiary)
-                            if description != (profile.description ?? "") {
-                                Button(isSavingDescription ? "Saving…" : "Save description", action: saveDescription)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Design.Brand.accent)
-                                    .disabled(isSavingDescription)
-                            }
                         }
                     }
 
@@ -79,7 +69,6 @@ struct RoleSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
-            .onAppear { description = profile.description ?? "" }
         }
         .presentationDetents([.large])
     }
@@ -132,22 +121,9 @@ struct RoleSheet: View {
         .padding(Design.Spacing.md)
         .contentShape(Rectangle())
     }
-
-    private func saveDescription() {
-        isSavingDescription = true
-        Task {
-            defer { isSavingDescription = false }
-            do {
-                try await store.saveDescription(description.trimmingCharacters(in: .whitespacesAndNewlines), for: profile.name)
-                toasts.show("Description saved")
-            } catch {
-                toasts.showError(error.localizedDescription)
-            }
-        }
-    }
 }
 
-/// Edit a role's SOUL.md persona.
+/// A role's SOUL.md persona, read-only.
 struct PersonaEditorScreen: View {
     let profile: HermesProfile
 
@@ -155,76 +131,45 @@ struct PersonaEditorScreen: View {
     static let managedMarker = "<!-- managed by hermes-host; delete this line to keep your own edits across redeploys -->"
 
     @Environment(TeamStore.self) private var store
-    @Environment(ToastCenter.self) private var toasts
-    @State private var content = ""
-    @State private var original: String?
+    @State private var content: String?
     @State private var error: String?
-    @State private var isSaving = false
-
-    private var isManaged: Bool { original?.hasPrefix(Self.managedMarker) == true }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            if isManaged {
-                Label(
-                    "Your server's deploy manages this persona. Saving here takes it over so redeploys keep your edits.",
-                    systemImage: "info.circle"
-                )
-                .font(.caption)
-                .foregroundStyle(Design.Colors.textSecondary)
-                .padding(Design.Spacing.sm)
-                .background(RoundedRectangle(cornerRadius: Design.CornerRadius.md).fill(Design.Colors.surfaceSolid))
-            }
-            if original == nil, error == nil {
-                ProgressView().tint(Design.Brand.accent).frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            if let content {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Design.Spacing.md) {
+                        Text(content)
+                            .font(.system(.footnote, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Personas hold the house rules, so they're changed on the server, not from the phone.")
+                            .font(.caption)
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                    .padding(Design.Spacing.md)
+                }
             } else if let error {
                 EmptyStateView(systemImage: "exclamationmark.triangle", title: "Couldn't load the persona", message: error)
             } else {
-                TextEditor(text: $content)
-                    .font(.system(.footnote, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .padding(Design.Spacing.xs)
-                    .cardSurface(cornerRadius: Design.CornerRadius.md)
+                ProgressView().tint(Design.Brand.accent).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(Design.Spacing.md)
         .background(Design.Colors.canvas)
         .navigationTitle("Persona")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button(isSaving ? "Saving…" : "Save", action: save)
-                    .disabled(isSaving || original == nil || content == displayText(original ?? ""))
-            }
-        }
         .task {
             do {
-                let soul = try await store.soul(for: profile.name)
-                original = soul
-                content = displayText(soul)
+                content = Self.displayText(try await store.soul(for: profile.name))
             } catch {
                 self.error = error.localizedDescription
             }
         }
     }
 
-    /// Hide the machine marker while editing.
-    private func displayText(_ soul: String) -> String {
-        guard soul.hasPrefix(Self.managedMarker) else { return soul }
-        return String(soul.dropFirst(Self.managedMarker.count)).trimmingCharacters(in: .newlines)
-    }
-
-    private func save() {
-        isSaving = true
-        Task {
-            defer { isSaving = false }
-            do {
-                try await store.saveSoul(content, for: profile.name)
-                original = content
-                toasts.show("Persona saved")
-            } catch {
-                toasts.showError(error.localizedDescription)
-            }
-        }
+    /// Hide the machine marker.
+    private static func displayText(_ soul: String) -> String {
+        guard soul.hasPrefix(managedMarker) else { return soul }
+        return String(soul.dropFirst(managedMarker.count)).trimmingCharacters(in: .newlines)
     }
 }

@@ -138,10 +138,4 @@ struct MockWorkspaceTransportTests {
         let api = HermesWorkspaceAPI(transport: MockWorkspaceTransport(mode: .offline))
         await #expect(throws: WorkspaceError.hostOffline) { try await api.board() }
     }
-
-    @Test func soulRoundTripsThroughLocalDecodeShape() async throws {
-        let api = HermesWorkspaceAPI(transport: MockWorkspaceTransport())
-        try await api.updateSoul(profile: "researcher", content: "Be thorough.")
-        #expect(try await api.soul(profile: "researcher") == "Be thorough.")
-    }
 }

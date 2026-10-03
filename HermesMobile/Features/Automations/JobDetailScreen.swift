@@ -9,7 +9,6 @@ struct JobDetailScreen: View {
 
     @State private var runs: [CronRun]?
     @State private var runsError: String?
-    @State private var confirmDelete = false
 
     private var job: CronJob? { store.jobs.first { $0.id == jobID } }
 
@@ -46,26 +45,12 @@ struct JobDetailScreen: View {
         .canvasBackground(glowOpacity: 0.06)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: CronRun.self) { run in
-            RunOutputScreen(run: run)
+            RunOutputScreen(run: run, profile: job?.profile)
         }
         .task(id: jobID) { await loadRuns() }
         .refreshable {
             await store.refresh()
             await loadRuns()
-        }
-        .confirmationDialog("Delete this automation?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                guard let job else { return }
-                Task {
-                    do {
-                        try await store.delete(job)
-                        dismiss()
-                        toasts.show("Automation deleted", systemImage: "trash")
-                    } catch {
-                        toasts.showError(error.localizedDescription)
-                    }
-                }
-            }
         }
     }
 
@@ -132,16 +117,6 @@ struct JobDetailScreen: View {
                     .padding(.vertical, 6)
             }
             .buttonStyle(.glass)
-
-            Button(role: .destructive) {
-                confirmDelete = true
-            } label: {
-                Image(systemName: "trash")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.vertical, 6)
-            }
-            .buttonStyle(.glass)
-            .accessibilityLabel("Delete automation")
         }
     }
 
@@ -216,6 +191,7 @@ struct JobDetailScreen: View {
 /// One run's output: the final reply Hermes produced.
 struct RunOutputScreen: View {
     let run: CronRun
+    let profile: String?
 
     @Environment(AutomationsStore.self) private var store
     @State private var output: String?
@@ -250,7 +226,7 @@ struct RunOutputScreen: View {
         }
         .task {
             do {
-                output = try await store.output(for: run)
+                output = try await store.output(for: run, profile: profile)
             } catch {
                 self.error = error.localizedDescription
             }

@@ -200,21 +200,10 @@ final class TeamStore {
         await refresh()
     }
 
-    func delete(_ task: KanbanTask) async throws {
-        try await api.deleteTask(id: task.id)
-        await refresh()
-    }
-
     // MARK: Pass-throughs for detail screens
 
     func detail(for id: String) async throws -> KanbanTaskDetail { try await api.task(id: id) }
     func log(for id: String) async throws -> KanbanTaskLog { try await api.taskLog(id: id) }
     func attachment(_ attachment: KanbanAttachment) async throws -> HermesFilePayload { try await api.attachment(id: attachment.id) }
     func soul(for profile: String) async throws -> String { try await api.soul(profile: profile) }
-    func saveSoul(_ content: String, for profile: String) async throws { try await api.updateSoul(profile: profile, content: content) }
-
-    func saveDescription(_ description: String, for profile: String) async throws {
-        try await api.updateDescription(profile: profile, description)
-        await refresh()
-    }
 }

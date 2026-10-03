@@ -9,14 +9,14 @@ enum HermesMemoryKind: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .user: "About you"
-        case .memory: "Hermes's notes"
+        case .memory: "Notes"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .user: "What Hermes knows about you and your preferences"
-        case .memory: "Facts and conventions Hermes has learned while working"
+        case .user: "What this agent knows about you and your preferences"
+        case .memory: "Facts and conventions this agent has learned while working"
         }
     }
 
@@ -71,8 +71,10 @@ struct HermesSkill: Decodable, Identifiable, Hashable, Sendable {
     var enabled: Bool
     var usage: Int?
     var provenance: String?
+    var locked: Bool?
 
     var id: String { name }
+    var isLocked: Bool { locked ?? false }
 
     var categoryTitle: String {
         guard let category, !category.isEmpty else { return "Other" }
