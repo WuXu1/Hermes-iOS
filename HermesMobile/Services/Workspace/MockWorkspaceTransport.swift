@@ -22,6 +22,9 @@ final class MockWorkspaceTransport: WorkspaceTransport {
     private(set) var openedSessions: [OpenedSession] = []
     private(set) var createdConversations: [String] = []
 
+    /// Test hook: holds `GET hermes/api/sessions` until the gate is opened.
+    var sessionsGate: SessionsGate?
+
     struct OpenedSession: Equatable {
         var profile: String
         var sessionId: String
@@ -50,6 +53,9 @@ final class MockWorkspaceTransport: WorkspaceTransport {
     ) async throws -> Response {
         requests.append((method, path))
         lastQuery = query
+        if method == .get, path == "hermes/api/sessions", let gate = sessionsGate {
+            await gate.wait()
+        }
         guard mode == .online else { throw WorkspaceError.hostOffline }
 
         let value = try handle(method, path.split(separator: "/").map(String.init), query: query, body: body)
@@ -322,4 +328,22 @@ final class MockWorkspaceTransport: WorkspaceTransport {
     private struct SessionPatchBody: Decodable { var title: String?; var archived: Bool? }
     private struct ConversationOpenBody: Decodable { var profile: String; var sessionId: String }
     private struct ConversationCreateBody: Decodable { var profile: String }
+}
+
+/// Suspends a request until opened; lets tests order concurrent responses.
+actor SessionsGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var opened = false
+    var isWaiting: Bool { continuation != nil }
+
+    func wait() async {
+        guard !opened else { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func open() {
+        opened = true
+        continuation?.resume()
+        continuation = nil
+    }
 }

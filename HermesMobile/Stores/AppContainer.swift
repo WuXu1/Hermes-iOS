@@ -68,6 +68,21 @@ final class AppContainer {
         self.notificationService = notificationService
     }
 
+    /// Agent switch: clear the old agent's history first, then reload chat (which
+    /// sets the current session via `onConversationChanged`), then list the new agent's chats.
+    static func agentSwitchHandler(
+        setProfile: @escaping @MainActor (String) -> Void,
+        chatStore: ChatStore,
+        conversationsStore: ConversationsStore
+    ) -> @MainActor (String) async -> Void {
+        { [weak chatStore, weak conversationsStore] profile in
+            setProfile(profile)
+            conversationsStore?.agentWillSwitch()
+            await chatStore?.reloadConversation()
+            await conversationsStore?.refresh(profile: profile)
+        }
+    }
+
     static func sharedDefault() -> AppContainer {
         sharedDefaultContainer
     }
@@ -245,12 +260,11 @@ final class AppContainer {
         )
 
         hermesClient.setActiveProfile(container.agentStore.selected)
-        container.agentStore.onSelectionChanged = { [weak chatStore = container.chatStore, weak conversationsStore = container.conversationsStore] profile in
-            hermesClient.setActiveProfile(profile)
-            await chatStore?.reloadConversation()
-            conversationsStore?.currentSessionID = nil
-            await conversationsStore?.refresh(profile: profile)
-        }
+        container.agentStore.onSelectionChanged = Self.agentSwitchHandler(
+            setProfile: { hermesClient.setActiveProfile($0) },
+            chatStore: container.chatStore,
+            conversationsStore: container.conversationsStore
+        )
 
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
             guard container?.pairingStore.isPaired == false else { return }
@@ -279,8 +293,8 @@ final class AppContainer {
 
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
-            if let conversation = container?.chatStore.conversation {
-                container?.conversationsStore.currentSessionID = conversation.hermesSessionID
+            if let container {
+                container.conversationsStore.adoptCurrent(from: container.chatStore.conversation)
             }
             container?.updateWidgetData()
         }

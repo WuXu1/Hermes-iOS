@@ -49,15 +49,38 @@ final class ConversationsStore {
             .filter { !$0.items.isEmpty }
     }
 
+    private var refreshToken = 0
+
+    /// Loads one agent's sessions. A newer request (e.g. after an agent switch)
+    /// supersedes this one, so a slow earlier response can't show the wrong agent's chats.
     func refresh(profile: String) async {
+        refreshToken += 1
+        let token = refreshToken
         isLoading = true
-        defer { isLoading = false }
+        defer { if token == refreshToken { isLoading = false } }
         do {
-            sessions = try await api.sessions(profile: profile)
+            let loaded = try await api.sessions(profile: profile)
+            guard token == refreshToken else { return }
+            sessions = loaded
             isOffline = false
         } catch {
+            guard token == refreshToken else { return }
             isOffline = true
         }
+    }
+
+    /// Drops the previous agent's list and invalidates any refresh still in flight.
+    func agentWillSwitch() {
+        refreshToken += 1
+        sessions = []
+        currentSessionID = nil
+        isLoading = false
+    }
+
+    /// Follows the relay conversation chat has loaded.
+    func adoptCurrent(from conversation: Conversation?) {
+        guard let conversation else { return }
+        currentSessionID = conversation.hermesSessionID
     }
 
     func reset() {

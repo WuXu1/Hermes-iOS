@@ -120,6 +120,25 @@ struct ConversationsStoreTests {
         #expect(transport.lastQuery["exclude_sources"] == "cron,subagent")
     }
 
+    @Test func staleRefreshAfterAgentSwitchIsDropped() async {
+        let transport = MockWorkspaceTransport()
+        let gate = SessionsGate()
+        transport.sessionsGate = gate
+        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
+        let slow = Task { await store.refresh(profile: "developer") }
+        while !(await gate.isWaiting) { await Task.yield() }
+
+        store.agentWillSwitch()
+        transport.sessionsGate = nil
+        await store.refresh(profile: "coach")
+        #expect(!store.sessions.isEmpty)
+
+        store.agentWillSwitch()
+        await gate.open()
+        await slow.value
+        #expect(store.sessions.isEmpty)
+    }
+
     @Test func openBindsTheSessionAndNotifies() async throws {
         let transport = MockWorkspaceTransport()
         let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))

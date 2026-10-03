@@ -1472,6 +1472,38 @@ struct AppStoresTests {
         #expect(chat.persistence.loadConversationCache()?.title == "title-coach")
     }
 
+    private final class SessionBoundClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        func setActiveProfile(_ profile: String) {}
+        func connect() async {}
+        func disconnect() async {}
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "", status: .delivered)
+        }
+        func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            AsyncStream { $0.finish() }
+        }
+        func loadConversation() async -> Conversation { Conversation(title: "t", hermesSessionID: "sess-42") }
+        func clearConversation() async throws -> Conversation { Conversation(title: "cleared") }
+        func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation { Conversation(title: "x") }
+    }
+
+    @Test @MainActor
+    func agentSwitchKeepsTheReloadedConversationsSessionCurrent() async {
+        let defaults = UserDefaults(suiteName: "chat-switch-\(UUID().uuidString)")!
+        let chat = ChatStore(hermesClient: SessionBoundClient(), persistence: UserDefaultsAppPersistenceStore(defaults: defaults))
+        let conversations = ConversationsStore(api: HermesWorkspaceAPI(transport: MockWorkspaceTransport()))
+        chat.onConversationChanged = { conversations.adoptCurrent(from: chat.conversation) }
+        conversations.currentSessionID = "previous-agent-session"
+
+        let handler = AppContainer.agentSwitchHandler(setProfile: { _ in }, chatStore: chat, conversationsStore: conversations)
+        await handler("tutor")
+
+        #expect(conversations.currentSessionID == "sess-42")
+        #expect(!conversations.sessions.isEmpty)
+    }
+
     @Test @MainActor
     func liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad() async throws {
         let configuration = URLSessionConfiguration.ephemeral
