@@ -5,7 +5,6 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     private enum Keys {
         static let userSettings = "hermes.userSettings"
         static let sessionState = "hermes.sessionState"
-        static let inboxState = "hermes.inboxState"
         static let pairedRelayConfiguration = "hermes.pairedRelayConfiguration"
         static let sensorOutboxState = "hermes.sensorOutboxState"
         static let conversationCache = "hermes.conversationCache"
@@ -46,18 +45,6 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearSessionState() {
         defaults.removeObject(forKey: Keys.sessionState)
-    }
-
-    func loadInboxState() -> InboxLocalState {
-        load(InboxLocalState.self, key: Keys.inboxState) ?? InboxLocalState()
-    }
-
-    func saveInboxState(_ state: InboxLocalState) {
-        save(state, key: Keys.inboxState)
-    }
-
-    func clearInboxState() {
-        defaults.removeObject(forKey: Keys.inboxState)
     }
 
     func loadPairedRelayConfiguration() -> PairedRelayConfiguration? {

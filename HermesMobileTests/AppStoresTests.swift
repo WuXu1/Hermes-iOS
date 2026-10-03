@@ -211,81 +211,6 @@ struct AppStoresTests {
             currentConversation = conversation
             return conversation
         }
-
-        func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-            currentConversation ?? Conversation(title: "Hermes")
-        }
-    }
-
-    @MainActor
-    private final class RecordingVoiceSessionService: VoiceSessionServiceProtocol {
-        var voiceState: VoiceState = .idle { didSet { publishSnapshot() } }
-        var connectionState: TalkConnectionState = .idle { didSet { publishSnapshot() } }
-        var transcriptItems: [TranscriptItem] = [] { didSet { publishSnapshot() } }
-        var sessionDuration: TimeInterval = 0 { didSet { publishSnapshot() } }
-        var isMuted = false { didSet { publishSnapshot() } }
-        var blockedReason: String? { didSet { publishSnapshot() } }
-        var statusMessage: String? { didSet { publishSnapshot() } }
-        var canStartSession = false { didSet { publishSnapshot() } }
-        var latencyMetrics = TalkLatencyMetrics() { didSet { publishSnapshot() } }
-
-        var snapshot: TalkSessionSnapshot {
-            TalkSessionSnapshot(
-                voiceState: voiceState,
-                connectionState: connectionState,
-                transcriptItems: transcriptItems,
-                sessionDuration: sessionDuration,
-                isMuted: isMuted,
-                blockedReason: blockedReason,
-                statusMessage: statusMessage,
-                canStartSession: canStartSession,
-                latencyMetrics: latencyMetrics,
-                voiceSessionID: nil
-            )
-        }
-
-        private let eventHub = TalkSessionEventHub()
-
-        func events() -> AsyncStream<TalkSessionEvent> {
-            eventHub.stream(initial: snapshot)
-        }
-
-        func refreshReadiness() async {
-            voiceState = .disconnected
-            connectionState = .blocked
-            blockedReason = "OpenAI Realtime is not configured on this Hermes host."
-            statusMessage = blockedReason
-            canStartSession = false
-        }
-
-        func startSession() async {}
-
-        func endSession() async {
-            voiceState = .idle
-            connectionState = .idle
-        }
-
-        func toggleMute() async {
-            isMuted.toggle()
-        }
-
-        func manuallyInterruptAssistantOutput() {
-            voiceState = .listening
-            statusMessage = "Listening"
-        }
-
-        @discardableResult
-        func sendImage(_ imageData: Data, mimeType: String, triggerResponse: Bool) -> Bool {
-            true
-        }
-
-        func emitAssistantTurn(_ text: String) {
-            transcriptItems.append(TranscriptItem(speaker: .hermes, text: text, isPartial: false))
-        }
-
-        private func publishSnapshot() {
-            eventHub.publish(snapshot: snapshot)
-        }
     }
 
     @Test @MainActor
@@ -567,10 +492,6 @@ struct AppStoresTests {
                 currentConversation = conversation
                 return conversation
             }
-
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let suiteName = "chat-store-stream-artifacts-\(UUID().uuidString)"
@@ -616,10 +537,6 @@ struct AppStoresTests {
 
             func clearConversation() async throws -> Conversation {
                 Conversation(title: "Hermes")
-            }
-
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
             }
         }
 
@@ -672,10 +589,6 @@ struct AppStoresTests {
 
             func clearConversation() async throws -> Conversation {
                 Conversation(title: "Hermes")
-            }
-
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
             }
         }
 
@@ -745,10 +658,6 @@ struct AppStoresTests {
 
             func clearConversation() async throws -> Conversation {
                 Conversation(title: "Hermes")
-            }
-
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
             }
         }
 
@@ -987,10 +896,6 @@ struct AppStoresTests {
             func clearConversation() async throws -> Conversation {
                 Conversation(title: "Hermes")
             }
-
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-retry-\(UUID().uuidString).txt")
@@ -1073,10 +978,6 @@ struct AppStoresTests {
             func clearConversation() async throws -> Conversation {
                 Conversation(title: "Hermes")
             }
-
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let image = UIGraphicsImageRenderer(size: CGSize(width: 16, height: 16)).image { context in
@@ -1098,317 +999,6 @@ struct AppStoresTests {
         let mergedAttachment = try #require(userMessage.attachments.first)
         #expect(mergedAttachment.thumbnailBase64 != nil)
         #expect(mergedAttachment.localStoragePath != nil)
-    }
-
-    @Test @MainActor
-    func talkStoreReflectsBlockedReadinessState() async throws {
-        let voiceService = RecordingVoiceSessionService()
-        let talkStore = TalkStore(voiceService: voiceService)
-
-        await talkStore.refreshReadiness()
-
-        #expect(talkStore.connectionState == .blocked)
-        #expect(talkStore.voiceState == .disconnected)
-        #expect(talkStore.canStartSession == false)
-        #expect(talkStore.blockedReason == "OpenAI Realtime is not configured on this Hermes host.")
-    }
-
-    @Test @MainActor
-    func talkStoreUpdatesFromVoiceEventStream() async throws {
-        let voiceService = RecordingVoiceSessionService()
-        let talkStore = TalkStore(voiceService: voiceService)
-
-        try? await Task.sleep(for: .milliseconds(25))
-        voiceService.emitAssistantTurn("Event-driven reply")
-        try? await Task.sleep(for: .milliseconds(25))
-
-        #expect(talkStore.transcriptItems.count == 1)
-        #expect(talkStore.transcriptItems.first?.text == "Event-driven reply")
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceRefreshesExpiredAccessTokenDuringReadiness() async throws {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        let session = URLSession(configuration: configuration)
-
-        let accessToken = MutableBox("expired-token")
-        let refreshCallCount = MutableBox(0)
-        let requestCount = MutableBox(0)
-
-        StubURLProtocol.requestHandler = { request in
-            requestCount.value += 1
-            let url = try #require(request.url)
-            #expect(url.absoluteString == "https://relay.example.com/v1/talk/readiness")
-
-            let authHeader = request.value(forHTTPHeaderField: "Authorization")
-            if authHeader == "Bearer expired-token" {
-                let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
-                let data = #"{"error":{"code":"unauthorized","message":"expired or invalid access token","retryable":false}}"#.data(using: .utf8)!
-                return (response, data)
-            }
-
-            #expect(authHeader == "Bearer refreshed-token")
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = #"""
-            {"data":{
-              "ready":true,
-              "hostOnline":true,
-              "configured":true,
-              "blockedReason":null,
-              "preferredModels":["gpt-realtime-1.5"],
-              "selectedModel":"gpt-realtime-1.5",
-              "voice":"verse",
-              "voiceContextUpdatedAt":"2026-04-01T20:40:47.636600Z"
-            }}
-            """#.data(using: .utf8)!
-            return (response, data)
-        }
-
-        defer {
-            StubURLProtocol.requestHandler = nil
-        }
-
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" },
-            session: session
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { accessToken.value },
-            accessTokenRefresher: {
-                refreshCallCount.value += 1
-                accessToken.value = "refreshed-token"
-                return accessToken.value
-            },
-            urlSession: session
-        )
-
-        await voiceService.refreshReadiness()
-
-        #expect(refreshCallCount.value == 1)
-        #expect(requestCount.value == 2)
-        #expect(voiceService.canStartSession)
-        #expect(voiceService.connectionState == .ready)
-        #expect(voiceService.statusMessage == "Hermes talk is ready.")
-        #expect(voiceService.blockedReason == nil)
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceInterruptsAssistantPlaybackOnSpeechStart() async throws {
-        let sentEvents = MutableBox([[String: Any]]())
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" },
-            realtimeEventTransportOverride: { data in
-                guard let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    return false
-                }
-                sentEvents.value.append(payload)
-                return true
-            }
-        )
-
-        voiceService.connectionState = .connected
-        voiceService.handleDataChannelEvent(
-            [
-                "type": "response.created",
-                "response": ["id": "resp_123"],
-            ]
-        )
-        voiceService.handleDataChannelEvent(
-            [
-                "type": "conversation.item.created",
-                "item": [
-                    "id": "item_123",
-                    "role": "assistant",
-                    "type": "message",
-                ],
-            ]
-        )
-        voiceService.handleDataChannelEvent(
-            [
-                "type": "response.output_text.delta",
-                "delta": "Testing interruption handling.",
-            ]
-        )
-        voiceService.handleDataChannelEvent(["type": "output_audio_buffer.started"])
-        try? await Task.sleep(for: .milliseconds(25))
-
-        voiceService.handleDataChannelEvent(["type": "input_audio_buffer.speech_started"])
-
-        #expect(sentEvents.value.count == 3)
-        #expect(sentEvents.value[0]["type"] as? String == "response.cancel")
-        #expect(sentEvents.value[0]["response_id"] as? String == "resp_123")
-        #expect(sentEvents.value[1]["type"] as? String == "output_audio_buffer.clear")
-        #expect(sentEvents.value[2]["type"] as? String == "conversation.item.truncate")
-        #expect(sentEvents.value[2]["item_id"] as? String == "item_123")
-        #expect(sentEvents.value[2]["content_index"] as? Int == 0)
-        let audioEndMs = try #require(sentEvents.value[2]["audio_end_ms"] as? Int)
-        #expect(audioEndMs >= 0)
-        #expect(voiceService.voiceState == .listening)
-        #expect(voiceService.statusMessage == "Listening")
-        #expect(voiceService.transcriptItems.last?.isPartial == false)
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceDoesNotInterruptWhenAssistantIsNotSpeaking() async throws {
-        let sentEvents = MutableBox([[String: Any]]())
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" },
-            realtimeEventTransportOverride: { data in
-                guard let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    return false
-                }
-                sentEvents.value.append(payload)
-                return true
-            }
-        )
-
-        voiceService.connectionState = .connected
-        voiceService.handleDataChannelEvent(
-            [
-                "type": "response.created",
-                "response": ["id": "resp_456"],
-            ]
-        )
-        voiceService.handleDataChannelEvent(
-            [
-                "type": "conversation.item.created",
-                "item": [
-                    "id": "item_456",
-                    "role": "assistant",
-                    "type": "message",
-                ],
-            ]
-        )
-
-        voiceService.handleDataChannelEvent(["type": "input_audio_buffer.speech_started"])
-
-        #expect(sentEvents.value.isEmpty)
-        #expect(voiceService.voiceState == .listening)
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceRecoversFromInterruptionsWithoutEndingSession() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
-        )
-
-        voiceService.connectionState = .connected
-        voiceService.voiceState = .speaking
-
-        voiceService.handleAudioInterruptionBegan()
-
-        #expect(voiceService.voiceState == .interrupted)
-        #expect(voiceService.statusMessage == "Audio interrupted.")
-
-        voiceService.handleAudioInterruptionEnded(shouldResume: true)
-
-        #expect(voiceService.connectionState == .connected)
-        #expect(voiceService.voiceState == .listening)
-        #expect(voiceService.statusMessage == "Listening")
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceRecoversFromRouteChangesDuringActiveSession() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
-        )
-
-        voiceService.connectionState = .connected
-        voiceService.voiceState = .interrupted
-
-        voiceService.handleAudioRouteChange(.oldDeviceUnavailable)
-
-        #expect(voiceService.connectionState == .connected)
-        #expect(voiceService.voiceState == .listening)
-        #expect(voiceService.statusMessage == "Audio route changed.")
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceKeepsUserTranscriptOrderedWhenTranscriptionFinishesLate() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
-        )
-
-        voiceService.connectionState = .connected
-        voiceService.handleDataChannelEvent([
-            "type": "input_audio_buffer.committed",
-            "item_id": "user_item_1",
-        ])
-        voiceService.handleDataChannelEvent([
-            "type": "response.created",
-            "response": ["id": "resp_late_user"],
-        ])
-        voiceService.handleDataChannelEvent([
-            "type": "conversation.item.created",
-            "item": [
-                "id": "assistant_item_1",
-                "role": "assistant",
-                "type": "message",
-            ],
-        ])
-        voiceService.handleDataChannelEvent([
-            "type": "response.output_text.delta",
-            "delta": "Let me check that.",
-        ])
-
-        voiceService.handleDataChannelEvent([
-            "type": "conversation.item.input_audio_transcription.completed",
-            "item_id": "user_item_1",
-            "transcript": "What should I focus on today?",
-        ])
-
-        #expect(voiceService.transcriptItems.count == 2)
-        #expect(voiceService.transcriptItems[0].speaker == .user)
-        #expect(voiceService.transcriptItems[0].text == "What should I focus on today?")
-        #expect(voiceService.transcriptItems[0].isPartial == false)
-        #expect(voiceService.transcriptItems[1].speaker == .hermes)
-        #expect(voiceService.transcriptItems[1].text == "Let me check that.")
-    }
-
-    @Test @MainActor
-    func liveVoiceSessionServiceIgnoresLateRealtimeErrorsAfterIntentionalEnd() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
-        )
-
-        voiceService.connectionState = .connected
-        voiceService.voiceState = .speaking
-
-        await voiceService.endSession()
-        voiceService.handleDataChannelEvent([
-            "type": "error",
-            "error": ["message": "Connection lost."],
-        ])
-
-        #expect(voiceService.connectionState == .idle)
-        #expect(voiceService.voiceState == .idle)
-        #expect(voiceService.statusMessage == nil)
     }
 
     @Test @MainActor
@@ -1487,7 +1077,6 @@ struct AppStoresTests {
             return Conversation(title: "title-\(captured)")
         }
         func clearConversation() async throws -> Conversation { Conversation(title: "cleared") }
-        func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation { Conversation(title: "x") }
         var isWaiting: Bool { !waiting.isEmpty }
         func release(_ profile: String) { gates.removeValue(forKey: profile)?.resume() }
     }
@@ -1528,7 +1117,6 @@ struct AppStoresTests {
         }
         func loadConversation() async -> Conversation { Conversation(title: "t", hermesSessionID: "sess-42") }
         func clearConversation() async throws -> Conversation { Conversation(title: "cleared") }
-        func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation { Conversation(title: "x") }
     }
 
     @Test @MainActor
@@ -1931,52 +1519,6 @@ struct AppStoresTests {
         #expect(persistence.loadPairedRelayConfiguration() == nil)
         #expect(await secureStore.retrieve(key: "session.accessToken") == nil)
         #expect(sessionStore.state.deviceRegistered == false)
-    }
-
-    @Test @MainActor
-    func inboxStorePersistsReadAndDismissState() async throws {
-        let suiteName = "inbox-store-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-            notificationService: MockNotificationService(),
-            environmentProvider: { .development }
-        )
-        await sessionStore.bootstrap()
-
-        let inboxStore = InboxStore(
-            inboxService: MockInboxService(),
-            persistence: persistence,
-            sessionStore: sessionStore
-        )
-
-        await inboxStore.loadInbox(force: true)
-        let originalItems = inboxStore.items
-
-        guard let firstItem = originalItems.first, let secondItem = originalItems.dropFirst().first else {
-            Issue.record("Expected demo inbox items")
-            return
-        }
-
-        await inboxStore.performPrimaryAction(for: firstItem)
-        await inboxStore.dismiss(secondItem)
-
-        let reloadedStore = InboxStore(
-            inboxService: MockInboxService(),
-            persistence: persistence,
-            sessionStore: sessionStore
-        )
-
-        await reloadedStore.loadInbox(force: true)
-
-        #expect(reloadedStore.items.contains(where: { $0.stableIdentifier == firstItem.stableIdentifier && $0.isRead }))
-        #expect(!reloadedStore.items.contains(where: { $0.stableIdentifier == secondItem.stableIdentifier }))
     }
 
     @Test

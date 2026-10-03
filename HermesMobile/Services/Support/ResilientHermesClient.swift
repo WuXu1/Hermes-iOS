@@ -74,8 +74,4 @@ final class ResilientHermesClient: HermesClientProtocol {
             return try await fallback.clearConversation()
         }
     }
-
-    func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-        try await primary.injectVoiceTranscript(voiceSessionId: voiceSessionId)
-    }
 }

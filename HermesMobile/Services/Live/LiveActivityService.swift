@@ -12,41 +12,6 @@ final class LiveActivityService {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
-    // MARK: - Voice Session
-
-    func startVoiceSession() {
-        guard isAvailable else { return }
-        let now = Date.now
-        adoptExistingActivityIfNeeded()
-        let attributes = HermesActivityAttributes(agentName: "Hermes")
-        let state = HermesActivityAttributes.ContentState(
-            status: "Listening", toolName: nil, elapsedSeconds: 0, startDate: now, sessionType: "voice"
-        )
-        if currentActivity != nil {
-            startedAt = now
-            updateActivity(with: state)
-            return
-        }
-        do {
-            currentActivity = try Activity.request(
-                attributes: attributes,
-                content: .init(state: state, staleDate: nil),
-                pushType: nil
-            )
-            startedAt = now
-        } catch {
-            // Live Activities not supported or disabled — silently ignore
-        }
-    }
-
-    func updateVoiceState(_ status: String, toolName: String? = nil) {
-        let elapsed = Int(Date().timeIntervalSince(startedAt ?? .now))
-        let state = HermesActivityAttributes.ContentState(
-            status: status, toolName: toolName, elapsedSeconds: elapsed, startDate: startedAt, sessionType: "voice"
-        )
-        updateActivity(with: state)
-    }
-
     // MARK: - Chat / Tool Calls
 
     func startToolCall(toolName: String) {

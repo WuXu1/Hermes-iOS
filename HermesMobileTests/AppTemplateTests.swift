@@ -34,10 +34,4 @@ struct HermesMobileTests {
         #expect(icons.count == types.count, "Each permission type should have a unique icon")
     }
 
-    @Test func inboxItemTypeVisualIdentityIsComplete() async throws {
-        for itemType in InboxItemType.allCases {
-            #expect(!itemType.displayLabel.isEmpty)
-            #expect(!itemType.displayIcon.isEmpty)
-        }
-    }
 }

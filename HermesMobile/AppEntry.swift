@@ -68,10 +68,8 @@ struct HermesMobileApp: App {
                 .environment(container.pairingStore)
                 .environment(container.hostStore)
                 .environment(container.chatStore)
-                .environment(container.inboxStore)
                 .environment(container.permissionsStore)
                 .environment(container.settingsStore)
-                .environment(container.talkStore)
                 .environment(container.teamStore)
                 .environment(container.agentStore)
                 .environment(container.automationsStore)
@@ -109,8 +107,6 @@ struct HermesMobileApp: App {
             container.router.popToRoot()
             container.router.selectedTab = .chat
             container.router.navigate(to: .permissions)
-        case "voice":
-            container.router.isVoiceOverlayPresented = true
         default:
             break
         }

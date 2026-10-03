@@ -95,43 +95,6 @@ final class HermesMobileUITests: XCTestCase {
     }
 
     @MainActor
-    func testDisconnectReturnsToOnboarding() throws {
-        let context = UITestLaunchContext()
-        let app = makeApp(context: context)
-        app.launch()
-        completePairing(in: app, setupCode: context.setupCode)
-
-        app.buttons["chat.agent"].tap()
-        app.buttons["Settings"].tap()
-        let manageButton = app.buttons["settings.hermesHost"]
-        XCTAssertTrue(manageButton.waitForExistence(timeout: 5))
-        manageButton.tap()
-
-        let disconnectButton = app.buttons["Disconnect"]
-        XCTAssertTrue(disconnectButton.waitForExistence(timeout: 5))
-        disconnectButton.tap()
-
-        XCTAssertTrue(app.buttons["Enter Code Manually"].waitForExistence(timeout: 5))
-    }
-
-    @MainActor
-    func testSettingsCanShowHostStatusScreen() throws {
-        let context = UITestLaunchContext()
-        let app = makeApp(context: context)
-        app.launch()
-        completePairing(in: app, setupCode: context.setupCode)
-
-        app.buttons["chat.agent"].tap()
-        app.buttons["Settings"].tap()
-        let manageHostButton = app.buttons["settings.hermesHost"]
-        XCTAssertTrue(manageHostButton.waitForExistence(timeout: 5))
-        manageHostButton.tap()
-
-        XCTAssertTrue(app.navigationBars["Connect Host"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Disconnect"].waitForExistence(timeout: 5))
-    }
-
-    @MainActor
     func testLaunchPerformance() throws {
         let context = UITestLaunchContext()
         measure(metrics: [XCTApplicationLaunchMetric()]) {

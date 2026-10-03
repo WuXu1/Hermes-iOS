@@ -65,24 +65,6 @@ struct SettingsScreen: View {
 
                 sectionDivider
 
-                if pairingStore.pairedRelayConfiguration != nil {
-                    settingsNavRow(
-                        icon: hostStatusRowIcon,
-                        iconColor: hostStatusRowColor,
-                        title: "Hermes Host",
-                        value: hostStatusRowValue,
-                        accessibilityIdentifier: "settings.hermesHost"
-                    ) {
-                        dismiss()
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(300))
-                            router.navigate(to: .connectHost)
-                        }
-                    }
-
-                    sectionDivider
-                }
-
                 settingsToggle(
                     icon: "bolt.fill",
                     iconColor: Design.Brand.accent,
@@ -158,41 +140,6 @@ struct SettingsScreen: View {
                     }
                 }
             }
-        }
-    }
-
-    private var hostStatusRowIcon: String {
-        switch hostStore.connectionState {
-        case .online:
-            return "desktopcomputer"
-        case .offline:
-            return "desktopcomputer.trianglebadge.exclamationmark"
-        case .unreachable:
-            return "wifi.exclamationmark"
-        case .notConnected:
-            return "desktopcomputer"
-        }
-    }
-
-    private var hostStatusRowColor: Color {
-        switch hostStore.connectionState {
-        case .online:
-            return .green
-        case .offline, .unreachable:
-            return .orange
-        case .notConnected:
-            return Design.Colors.secondaryForeground
-        }
-    }
-
-    private var hostStatusRowValue: String {
-        switch hostStore.connectionState {
-        case .online, .offline:
-            return hostStore.currentHost?.resolvedDisplayName ?? "Hermes Host"
-        case .unreachable:
-            return "Status unavailable"
-        case .notConnected:
-            return "Not Connected"
         }
     }
 

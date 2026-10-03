@@ -293,28 +293,6 @@ final class ChatStore {
         }
     }
 
-    func injectVoiceTranscript(voiceSessionId: UUID, duration: TimeInterval) async {
-        do {
-            let updated = try await hermesClient.injectVoiceTranscript(voiceSessionId: voiceSessionId)
-            conversation = updated
-            lastTokenUsage = updated.latestUsage
-
-            // Set voiceSessionDuration on the system banner message
-            if let idx = conversation?.messages.lastIndex(where: {
-                $0.sender == .system && $0.content.contains("[Voice session ended]")
-            }) {
-                conversation?.messages[idx].voiceSessionDuration = duration
-            }
-
-            if let conversation {
-                persistence.saveConversationCache(conversation)
-                onConversationChanged?()
-            }
-        } catch {
-            // Injection failed — voice transcript not added to chat. Non-fatal.
-        }
-    }
-
     func exportConversationToFile() {
         guard let conversation else { return }
 

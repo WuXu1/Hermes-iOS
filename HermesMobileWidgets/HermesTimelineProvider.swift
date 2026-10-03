@@ -14,7 +14,6 @@ struct HermesWidgetEntry: TimelineEntry {
             lastMessagePreview: "Good morning! How can I help?",
             lastMessageSender: "assistant",
             lastMessageAt: .now,
-            voiceSessionActive: false,
             steps: 4_230,
             activeCalories: 185,
             sleepHours: 7.4,

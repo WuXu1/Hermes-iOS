@@ -11,10 +11,8 @@ final class AppContainer {
     let pairingStore: PairingStore
     let hostStore: HermesHostStore
     let chatStore: ChatStore
-    let inboxStore: InboxStore
     let permissionsStore: PermissionsStore
     let settingsStore: SettingsStore
-    let talkStore: TalkStore
     let teamStore: TeamStore
     let agentStore: AgentStore
     let automationsStore: AutomationsStore
@@ -36,10 +34,8 @@ final class AppContainer {
         pairingStore: PairingStore,
         hostStore: HermesHostStore,
         chatStore: ChatStore,
-        inboxStore: InboxStore,
         permissionsStore: PermissionsStore,
         settingsStore: SettingsStore,
-        talkStore: TalkStore,
         workspaceTransport: (any WorkspaceTransport)? = nil,
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
@@ -49,10 +45,8 @@ final class AppContainer {
         self.pairingStore = pairingStore
         self.hostStore = hostStore
         self.chatStore = chatStore
-        self.inboxStore = inboxStore
         self.permissionsStore = permissionsStore
         self.settingsStore = settingsStore
-        self.talkStore = talkStore
         let workspaceAPI = HermesWorkspaceAPI(transport: workspaceTransport ?? MockWorkspaceTransport(mode: .offline))
         self.workspaceAPI = workspaceAPI
         teamStore = TeamStore(api: workspaceAPI)
@@ -138,12 +132,6 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
-        let inboxService = ResilientInboxService(
-            primary: LiveInboxService(apiClient: apiClient),
-            fallback: MockInboxService(),
-            allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
-        )
-
         let sessionStore = AppSessionStore(
             bootstrapService: sessionBootstrapService,
             syncCoordinator: syncCoordinator,
@@ -211,30 +199,11 @@ final class AppContainer {
             healthService: liveHealthService,
             motionService: liveMotionService
         )
-        let voiceService: any VoiceSessionServiceProtocol = if usesMockPairingService {
-            MockVoiceSessionService()
-        } else {
-            LiveVoiceSessionService(
-                apiClient: apiClient,
-                accessTokenProvider: { await sessionStore.currentAccessToken() },
-                accessTokenRefresher: {
-                    await sessionStore.refreshAccessTokenIfNeeded()
-                    return await sessionStore.currentAccessToken()
-                }
-            )
-        }
-
         let container = AppContainer(
             sessionStore: sessionStore,
             pairingStore: runtimePairingStore,
             hostStore: hostStore,
             chatStore: ChatStore(hermesClient: hermesClient, persistence: persistence),
-            inboxStore: InboxStore(
-                inboxService: inboxService,
-                persistence: persistence,
-                sessionStore: sessionStore,
-                allowDemoFallback: allowMockFallbacks
-            ),
             permissionsStore: PermissionsStore(
                 locationService: liveLocationService,
                 healthService: liveHealthService,
@@ -243,7 +212,6 @@ final class AppContainer {
                 motionService: liveMotionService
             ),
             settingsStore: settingsStore,
-            talkStore: TalkStore(voiceService: voiceService),
             workspaceTransport: usesMockPairingService
                 ? MockWorkspaceTransport()
                 : LiveWorkspaceTransport(
@@ -273,7 +241,6 @@ final class AppContainer {
                   !relayBaseURL.isEmpty else { return }
             _ = relayBaseURL
             await sessionStore?.bootstrap(forceRegistration: true)
-            await container?.inboxStore.loadInbox(force: true)
         }
 
         settingsStore.onEnvironmentChanged = { _ in
@@ -296,9 +263,6 @@ final class AppContainer {
             if let container {
                 container.conversationsStore.adoptCurrent(from: container.chatStore.conversation)
             }
-            container?.updateWidgetData()
-        }
-        container.talkStore.onSessionStateChanged = { [weak container] in
             container?.updateWidgetData()
         }
         container.hostStore.onHostChanged = { [weak container] in
@@ -329,7 +293,6 @@ final class AppContainer {
         await hostStore.refresh()
         lastKnownHostOnline = hostStore.isHostOnline
         await chatStore.loadConversationIfNeeded()
-        await inboxStore.loadInbox()
         await refreshCommandCatalog(force: true)
         await registerStoredPushTokenIfNeeded()
         sensorUploadService?.start()
@@ -349,8 +312,6 @@ final class AppContainer {
         await refreshCommandCatalog(force: true)
         await registerStoredPushTokenIfNeeded()
         await sensorUploadService?.handleAppDidBecomeActive()
-        talkStore.handleAppDidBecomeActive()
-        await talkStore.refreshReadiness()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
         updateWidgetData()
@@ -365,8 +326,6 @@ final class AppContainer {
         lastKnownHostOnline = hostStore.isHostOnline
         await registerStoredPushTokenIfNeeded()
         await sensorUploadService?.handleAppDidBecomeActive()
-        talkStore.handleAppDidBecomeActive()
-        await talkStore.refreshReadiness()
         reconcileLiveActivities()
         updateWidgetData()
     }
@@ -378,7 +337,6 @@ final class AppContainer {
         sensorUploadService?.start()
         await sensorUploadService?.handleSystemLaunch()
         await registerStoredPushTokenIfNeeded()
-        await talkStore.refreshReadiness()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
     }
@@ -386,12 +344,10 @@ final class AppContainer {
     private func handlePairingActivated() async {
         isInitialized = false
         chatStore.reset()
-        inboxStore.reset()
         await initialize()
 
         // Start sensor data pipeline
         sensorUploadService?.start()
-        await talkStore.refreshReadiness()
     }
 
     /// Registers the APNs device token with the relay so it can send silent push notifications.
@@ -636,13 +592,12 @@ final class AppContainer {
     }
 
     /// Snapshots current app state into the App Group shared container
-    /// so Home Screen widgets and CarPlay widgets can display it.
+    /// so Home Screen widgets can display it.
     func updateWidgetData() {
         let lastMessage = chatStore.conversation?.messages.last
         var data = SharedWidgetDataStore.read()
         data.hostName = hostStore.currentHost?.resolvedDisplayName
         data.hostOnline = hostStore.isHostOnline
-        data.voiceSessionActive = talkStore.isSessionActive
         data.updatedAt = .now
         if let msg = lastMessage {
             data.lastMessagePreview = String(msg.content.prefix(120))
@@ -654,15 +609,12 @@ final class AppContainer {
 
     private func handlePairingRemoved() async {
         isInitialized = false
-        await talkStore.endSessionIfNeeded()
-        talkStore.reset()
         sensorUploadService?.stop()
         sensorUploadService?.resetOutbox()
         router.selectedTab = .chat
         router.activeSheet = nil
         router.resetAll()
         chatStore.reset()
-        inboxStore.reset()
         hostStore.reset()
         teamStore.reset()
         automationsStore.reset()
@@ -675,7 +627,7 @@ final class AppContainer {
     }
 
     private func reconcileLiveActivities() {
-        if talkStore.isSessionActive || chatStore.isStreaming {
+        if chatStore.isStreaming {
             return
         }
         LiveActivityService.endAllActivities()

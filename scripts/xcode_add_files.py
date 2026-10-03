@@ -7,6 +7,7 @@ widget extension's Info.plist settings), so new files are added directly:
     pip install pbxproj
     python scripts/xcode_add_files.py --target HermesMobile HermesMobile/Features/Team/TeamScreen.swift
     python scripts/xcode_add_files.py --target HermesMobile HermesMobile/Resources/MockFixtures
+    python scripts/xcode_add_files.py --remove --target HermesMobile HermesMobile/Features/Team/TeamScreen.swift
 
 Each file lands in the group matching its folder (groups are created as
 needed, with folder-relative paths like the rest of the project). Files that
@@ -59,6 +60,32 @@ def _child_group(project: XcodeProject, parent, part: str):
     return None
 
 
+def remove_file(project: XcodeProject, relative: Path, target_name: str) -> bool:
+    """Remove a repo-relative file from the project, pruning groups left empty."""
+    try:
+        group = group_for_existing(project, relative.parent)
+    except LookupError:
+        return False
+    for child_id in list(group.children):
+        if project.objects[child_id].get("path", None) == relative.name:
+            if not project.remove_file_by_id(child_id, target_name=target_name):
+                return False
+            prune_empty_groups(project, relative.parent)
+            return True
+    return False
+
+
+def prune_empty_groups(project: XcodeProject, folder: Path) -> None:
+    for depth in range(len(folder.parts), 0, -1):
+        sub = Path(*folder.parts[:depth])
+        group = group_for_existing(project, sub)
+        if group.children:
+            return
+        parent = group_for_existing(project, sub.parent) if depth > 1 else project.objects[project.objects[project.rootObject].mainGroup]
+        parent.remove_child(group)
+        del project.objects[group.get_id()]
+
+
 def expand(raw_paths: list[str]) -> list[Path]:
     paths: list[Path] = []
     for raw in raw_paths:
@@ -81,10 +108,29 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--target", required=True, help="Target name, e.g. HermesMobile or HermesMobileTests")
     parser.add_argument("paths", nargs="+", help="Repo-relative files or folders (folders add every file inside)")
+    parser.add_argument("--remove", action="store_true", help="Remove the given files from the project instead of adding them.")
     args = parser.parse_args()
 
     project = XcodeProject.load(str(PROJECT_PATH))
     changed = False
+    if args.remove:
+        for raw in args.paths:
+            relative = Path(raw)
+            if relative.is_absolute():
+                relative = relative.resolve().relative_to(REPO_ROOT)
+            if (REPO_ROOT / relative).is_dir():
+                targets = sorted(path.relative_to(REPO_ROOT) for path in (REPO_ROOT / relative).rglob("*") if path.is_file() and path.name != ".DS_Store")
+            else:
+                targets = [relative]
+            for target in targets:
+                if remove_file(project, target, args.target):
+                    print(f"removed: {target}")
+                    changed = True
+                else:
+                    print(f"skip (not in project): {target}")
+        if changed:
+            project.save()
+        return
     for relative in expand(args.paths):
         if already_added(project, relative):
             print(f"skip (already in project): {relative}")

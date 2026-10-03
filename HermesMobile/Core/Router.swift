@@ -4,8 +4,6 @@ import SwiftUI
 
 enum Route: Hashable {
     case permissions
-    case capture
-    case connectHost
 }
 
 // MARK: - Sheet Destinations
@@ -62,7 +60,6 @@ enum AppTab: String, CaseIterable, Identifiable {
 final class TabRouter {
     var selectedTab: AppTab = .chat
     var activeSheet: SheetDestination?
-    var isVoiceOverlayPresented = false
     private var paths: [AppTab: NavigationPath] = [:]
 
     func pathBinding(for tab: AppTab) -> Binding<NavigationPath> {

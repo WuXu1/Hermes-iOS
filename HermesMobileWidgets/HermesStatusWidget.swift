@@ -1,7 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-/// Glanceable Hermes status — connection state, last message, voice indicator.
+/// Glanceable Hermes status — connection state, last message.
 struct HermesStatusWidget: Widget {
     let kind = "HermesStatus"
 
@@ -56,12 +56,6 @@ private struct HermesStatusView: View {
                     .frame(width: 8, height: 8)
             }
 
-            if entry.data.voiceSessionActive {
-                Label("Voice Active", systemImage: "waveform")
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-            }
-
             Spacer()
 
             if let preview = entry.data.lastMessagePreview {
@@ -84,17 +78,11 @@ private struct HermesStatusView: View {
         .widgetURL(URL(string: "hermes://chat"))
     }
 
-    // MARK: - Accessory Circular (Lock Screen + CarPlay)
+    // MARK: - Accessory Circular (Lock Screen)
 
     private var circularView: some View {
         VStack(spacing: 2) {
-            if entry.data.voiceSessionActive {
-                Image(systemName: "waveform")
-                    .font(.title3)
-                    .widgetAccentable()
-            } else {
-                HermesBrandIcon(size: 18)
-            }
+            HermesBrandIcon(size: 18)
             Circle()
                 .fill(entry.data.hostOnline ? .green : .gray)
                 .frame(width: 5, height: 5)
@@ -111,11 +99,6 @@ private struct HermesStatusView: View {
                 Text("Hermes")
                     .font(.headline)
                 Spacer()
-                if entry.data.voiceSessionActive {
-                    Image(systemName: "waveform")
-                        .font(.caption2)
-                        .widgetAccentable()
-                }
             }
 
             if let preview = entry.data.lastMessagePreview {

@@ -11,7 +11,6 @@ protocol HermesClientProtocol {
     func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate>
     func loadConversation() async -> Conversation
     func clearConversation() async throws -> Conversation
-    func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation
     func transcribe(audio: Data, mimeType: String) async throws -> String
 }
 

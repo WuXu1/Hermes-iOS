@@ -2,8 +2,6 @@ import SwiftUI
 
 struct MainTabView: View {
     @Environment(TabRouter.self) private var router
-    @Environment(TalkStore.self) private var talkStore
-    @Environment(ChatStore.self) private var chatStore
     @Environment(TeamStore.self) private var teamStore
     @Environment(AgentStore.self) private var agentStore
     @Environment(ToastCenter.self) private var toastCenter
@@ -31,24 +29,10 @@ struct MainTabView: View {
         .sheet(item: $router.activeSheet) { destination in
             sheetDestination(destination)
         }
-        .fullScreenCover(isPresented: $router.isVoiceOverlayPresented) {
-            VoiceOverlayScreen()
-        }
         .task {
             // Keep the Team badge fresh from anywhere in the app.
             await teamStore.refresh()
             await agentStore.refresh()
-        }
-        .onChange(of: talkStore.lastCompletedSession != nil) { _, hasSession in
-            if hasSession, let session = talkStore.lastCompletedSession {
-                Task {
-                    await chatStore.injectVoiceTranscript(
-                        voiceSessionId: session.voiceSessionId,
-                        duration: session.duration
-                    )
-                    talkStore.clearLastCompletedSession()
-                }
-            }
         }
     }
 
@@ -66,10 +50,6 @@ struct MainTabView: View {
         switch route {
         case .permissions:
             PermissionsScreen()
-        case .capture:
-            CaptureScreen()
-        case .connectHost:
-            ConnectHermesHostScreen()
         }
     }
 
