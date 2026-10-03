@@ -5,6 +5,7 @@ struct MainTabView: View {
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
     @Environment(TeamStore.self) private var teamStore
+    @Environment(AgentStore.self) private var agentStore
     @Environment(ToastCenter.self) private var toastCenter
 
     var body: some View {
@@ -36,6 +37,7 @@ struct MainTabView: View {
         .task {
             // Keep the Team badge fresh from anywhere in the app.
             await teamStore.refresh()
+            await agentStore.refresh()
         }
         .onChange(of: talkStore.lastCompletedSession != nil) { _, hasSession in
             if hasSession, let session = talkStore.lastCompletedSession {

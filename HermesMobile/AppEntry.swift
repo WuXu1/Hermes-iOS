@@ -73,6 +73,7 @@ struct HermesMobileApp: App {
                 .environment(container.settingsStore)
                 .environment(container.talkStore)
                 .environment(container.teamStore)
+                .environment(container.agentStore)
                 .environment(container.automationsStore)
                 .environment(container.libraryStore)
                 .environment(container.conversationsStore)

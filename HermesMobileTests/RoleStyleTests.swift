@@ -2,14 +2,17 @@ import Testing
 @testable import HermesMobile
 
 struct RoleStyleTests {
-    @Test func knownRolesHaveFixedSymbolsAndNames() {
-        #expect(RoleStyle.forProfile("researcher").symbol == "magnifyingglass")
-        #expect(RoleStyle.forProfile("researcher").displayName == "Researcher")
-        #expect(RoleStyle.forProfile("operator").symbol == "safari")
-        #expect(RoleStyle.forProfile("coder").symbol == "chevron.left.forwardslash.chevron.right")
-        #expect(RoleStyle.forProfile("reviewer").symbol == "checkmark.seal")
-        #expect(RoleStyle.forProfile("default").displayName == "Chief of staff")
-        #expect(RoleStyle.forProfile("default").symbol == "sparkles")
+    @Test func fiveAgentsHaveFixedStyles() {
+        #expect(RoleStyle.forProfile("default").displayName == "Commander")
+        #expect(RoleStyle.forProfile("developer").displayName == "Developer")
+        #expect(RoleStyle.forProfile("tutor").displayName == "Tutor")
+        #expect(RoleStyle.forProfile("assistant").displayName == "Assistant")
+        #expect(RoleStyle.forProfile("coach").displayName == "Coach")
+        #expect(RoleStyle.forProfile("coach").symbol == "figure.tennis")
+    }
+
+    @Test func unknownAgentStillGetsAStyle() {
+        #expect(RoleStyle.forProfile("night-owl").displayName == "Night owl")
     }
 
     @Test func unknownRoleUsesCapitalizedNameAndInitial() {

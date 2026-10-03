@@ -23,37 +23,15 @@ struct RoleStyle: Equatable {
     ]
 
     private static let known: [String: RoleStyle] = [
-        defaultProfileName: RoleStyle(
-            name: defaultProfileName,
-            displayName: "Chief of staff",
-            color: Design.Brand.accent,
-            symbol: "sparkles"
-        ),
-        "researcher": RoleStyle(
-            name: "researcher",
-            displayName: "Researcher",
-            color: Color(hex: 0x5AC8FA),
-            symbol: "magnifyingglass"
-        ),
-        "operator": RoleStyle(
-            name: "operator",
-            displayName: "Operator",
-            color: Color(hex: 0x34C759),
-            symbol: "safari"
-        ),
-        "coder": RoleStyle(
-            name: "coder",
-            displayName: "Coder",
-            color: Color(hex: 0xAF7BFF),
-            symbol: "chevron.left.forwardslash.chevron.right"
-        ),
-        "reviewer": RoleStyle(
-            name: "reviewer",
-            displayName: "Reviewer",
-            color: Color(hex: 0xFF7A6B),
-            symbol: "checkmark.seal"
-        ),
+        defaultProfileName: RoleStyle(name: defaultProfileName, displayName: "Commander", color: Design.Brand.accent, symbol: "star.circle.fill"),
+        "developer": RoleStyle(name: "developer", displayName: "Developer", color: Color(hex: 0xAF7BFF), symbol: "chevron.left.forwardslash.chevron.right"),
+        "tutor": RoleStyle(name: "tutor", displayName: "Tutor", color: Color(hex: 0x5AC8FA), symbol: "graduationcap.fill"),
+        "assistant": RoleStyle(name: "assistant", displayName: "Assistant", color: Color(hex: 0x34C759), symbol: "calendar"),
+        "coach": RoleStyle(name: "coach", displayName: "Coach", color: Color(hex: 0xFF9F0A), symbol: "figure.tennis"),
     ]
+
+    /// Display order for agent pickers: the chief first, then the specialists.
+    static let preferredOrder = [defaultProfileName, "developer", "tutor", "assistant", "coach"]
 
     static let unassigned = RoleStyle(
         name: "",

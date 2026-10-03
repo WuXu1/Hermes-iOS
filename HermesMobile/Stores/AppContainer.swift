@@ -16,6 +16,7 @@ final class AppContainer {
     let settingsStore: SettingsStore
     let talkStore: TalkStore
     let teamStore: TeamStore
+    let agentStore: AgentStore
     let automationsStore: AutomationsStore
     let libraryStore: LibraryStore
     let conversationsStore: ConversationsStore
@@ -55,6 +56,7 @@ final class AppContainer {
         let workspaceAPI = HermesWorkspaceAPI(transport: workspaceTransport ?? MockWorkspaceTransport(mode: .offline))
         self.workspaceAPI = workspaceAPI
         teamStore = TeamStore(api: workspaceAPI)
+        agentStore = AgentStore(api: workspaceAPI)
         automationsStore = AutomationsStore(api: workspaceAPI)
         libraryStore = LibraryStore(api: workspaceAPI)
         conversationsStore = ConversationsStore(api: workspaceAPI)
