@@ -34,7 +34,6 @@ iOS App ──HTTP/SSE──▶ Relay ──WebSocket──▶ Connector ──�
 
 - APNs end-to-end on real Apple credentials
 - background location behavior
-- CarPlay entitlement path
 - background audio continuity under real interruptions
 
 ## Test posture

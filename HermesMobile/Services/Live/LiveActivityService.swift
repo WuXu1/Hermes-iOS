@@ -55,7 +55,7 @@ final class LiveActivityService {
 
         let finalContent = ActivityContent(
             state: HermesActivityAttributes.ContentState(
-                status: "Done", toolName: nil, elapsedSeconds: 0, startDate: nil, sessionType: "voice"
+                status: "Done", toolName: nil, elapsedSeconds: 0, startDate: nil, sessionType: "tool"
             ),
             staleDate: nil
         )
@@ -90,7 +90,7 @@ final class LiveActivityService {
     static func endAllActivities() {
         let finalContent = ActivityContent(
             state: HermesActivityAttributes.ContentState(
-                status: "Done", toolName: nil, elapsedSeconds: 0, startDate: nil, sessionType: "voice"
+                status: "Done", toolName: nil, elapsedSeconds: 0, startDate: nil, sessionType: "tool"
             ),
             staleDate: nil
         )

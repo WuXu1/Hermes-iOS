@@ -107,7 +107,6 @@ extension SlashCommand {
         SlashCommand(name: "personality", description: "Set a predefined personality", category: "Configuration", acceptsArgument: true, isDestructive: false, isLocal: false),
         SlashCommand(name: "yolo", description: "Toggle auto-approve mode", category: "Configuration", acceptsArgument: false, isDestructive: false, isLocal: false),
         SlashCommand(name: "reasoning", description: "Manage reasoning effort and display", category: "Configuration", acceptsArgument: true, isDestructive: false, isLocal: false),
-        SlashCommand(name: "voice", description: "Toggle voice mode", category: "Configuration", acceptsArgument: true, isDestructive: false, isLocal: false),
         SlashCommand(name: "reload-mcp", description: "Reload MCP servers from config", category: "Tools & Skills", acceptsArgument: false, isDestructive: false, isLocal: false),
 
         // Info
