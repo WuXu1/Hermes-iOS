@@ -244,6 +244,13 @@ final class AppContainer {
             notificationService: notificationService
         )
 
+        hermesClient.setActiveProfile(container.agentStore.selected)
+        container.agentStore.onSelectionChanged = { [weak chatStore = container.chatStore, weak conversationsStore = container.conversationsStore] profile in
+            hermesClient.setActiveProfile(profile)
+            await chatStore?.reloadConversation()
+            await conversationsStore?.refresh()
+        }
+
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
             guard container?.pairingStore.isPaired == false else { return }
             await sessionStore?.clearSession()

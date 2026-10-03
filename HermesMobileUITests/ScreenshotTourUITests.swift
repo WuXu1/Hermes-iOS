@@ -67,7 +67,7 @@ final class ScreenshotTourUITests: XCTestCase {
 
         app.tabBars.buttons["Chat"].tap()
         if tapIfExists(app.buttons["chat.history"]) { capture("09-history"); dismissSheet() }
-        if tapIfExists(app.buttons["Open settings"]) { capture("10-settings"); dismissSheet() }
+        if tapIfExists(app.buttons["chat.agent"]), tapIfExists(app.buttons["Settings"]) { capture("10-settings"); dismissSheet() }
         // Chat steps change the account's shared current chat; mock mode only.
         if liveRelayURL == nil {
             let composer = app.textFields["chat.composer"]

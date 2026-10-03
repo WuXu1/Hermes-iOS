@@ -4,6 +4,7 @@ import Foundation
 protocol HermesClientProtocol {
     var connectionStatus: ConnectionStatus { get }
     var currentConversation: Conversation? { get }
+    func setActiveProfile(_ profile: String)
     func connect() async
     func disconnect() async
     func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message

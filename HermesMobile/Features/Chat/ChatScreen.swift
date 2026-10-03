@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChatScreen: View {
     @Environment(ChatStore.self) private var chatStore
+    @Environment(AgentStore.self) private var agentStore
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(PairingStore.self) private var pairingStore
     @Environment(AppSessionStore.self) private var sessionStore
@@ -112,14 +113,20 @@ struct ChatScreen: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button {
-                router.presentSheet(.settings)
+            Menu {
+                Picker("Agent", selection: Binding(get: { agentStore.selected }, set: { agentStore.select($0) })) {
+                    ForEach(agentStore.ordered) { profile in
+                        let style = RoleStyle.forProfile(profile.name)
+                        Label(style.displayName, systemImage: style.symbol).tag(profile.name)
+                    }
+                }
+                Divider()
+                Button("Settings", systemImage: "gearshape") { router.presentSheet(.settings) }
             } label: {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Design.Brand.accent)
+                RoleAvatar(style: agentStore.selectedStyle, size: .small, isLive: chatStore.isStreaming)
             }
-            .accessibilityLabel("Open settings")
+            .accessibilityLabel("Agent: \(agentStore.selectedStyle.displayName)")
+            .accessibilityIdentifier("chat.agent")
         }
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
@@ -153,8 +160,8 @@ struct ChatScreen: View {
     }
 
     private var conversationTitle: String {
-        let title = conversationsStore.current?.title ?? chatStore.conversation?.title ?? "Hermes"
-        return title.isEmpty ? "Hermes" : title
+        let title = conversationsStore.current?.title ?? chatStore.conversation?.title ?? agentStore.selectedStyle.displayName
+        return title.isEmpty ? agentStore.selectedStyle.displayName : title
     }
 
     private var isEmptyConversation: Bool {

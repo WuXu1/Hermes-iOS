@@ -24,6 +24,11 @@ final class ResilientHermesClient: HermesClientProtocol {
         self.allowsFallback = allowsFallback
     }
 
+    func setActiveProfile(_ profile: String) {
+        primary.setActiveProfile(profile)
+        fallback.setActiveProfile(profile)
+    }
+
     func connect() async {
         await primary.connect()
         if allowsFallback() && primary.connectionStatus == .error {

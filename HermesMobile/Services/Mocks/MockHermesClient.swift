@@ -5,6 +5,8 @@ import Foundation
 final class MockHermesClient: HermesClientProtocol {
     var connectionStatus: ConnectionStatus = .connected
     var currentConversation: Conversation?
+    private(set) var activeProfile = "default"
+    private(set) var loadConversationProfiles: [String] = []
 
     private let responseDelay: TimeInterval = 1.5
 
@@ -93,7 +95,12 @@ final class MockHermesClient: HermesClientProtocol {
         }
     }
 
+    func setActiveProfile(_ profile: String) {
+        activeProfile = profile
+    }
+
     func loadConversation() async -> Conversation {
+        loadConversationProfiles.append(activeProfile)
         let conversation = DemoData.sampleConversation
         currentConversation = conversation
         return conversation

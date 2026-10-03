@@ -54,7 +54,7 @@ final class HermesMobileUITests: XCTestCase {
 
         XCTAssertTrue(composerInput(in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Start voice mode"].exists)
-        XCTAssertTrue(app.buttons["Open settings"].exists)
+        XCTAssertTrue(app.buttons["chat.agent"].exists)
     }
 
     @MainActor
@@ -83,7 +83,7 @@ final class HermesMobileUITests: XCTestCase {
         let app = makeApp(context: context)
         app.launch()
         completePairing(in: app, setupCode: context.setupCode)
-        XCTAssertTrue(app.buttons["Open settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["chat.agent"].waitForExistence(timeout: 5))
 
         app.terminate()
 
@@ -101,7 +101,8 @@ final class HermesMobileUITests: XCTestCase {
         app.launch()
         completePairing(in: app, setupCode: context.setupCode)
 
-        app.buttons["Open settings"].tap()
+        app.buttons["chat.agent"].tap()
+        app.buttons["Settings"].tap()
         let manageButton = app.buttons["settings.hermesHost"]
         XCTAssertTrue(manageButton.waitForExistence(timeout: 5))
         manageButton.tap()
@@ -120,7 +121,8 @@ final class HermesMobileUITests: XCTestCase {
         app.launch()
         completePairing(in: app, setupCode: context.setupCode)
 
-        app.buttons["Open settings"].tap()
+        app.buttons["chat.agent"].tap()
+        app.buttons["Settings"].tap()
         let manageHostButton = app.buttons["settings.hermesHost"]
         XCTAssertTrue(manageHostButton.waitForExistence(timeout: 5))
         manageHostButton.tap()
@@ -162,7 +164,7 @@ final class HermesMobileUITests: XCTestCase {
             continueButton.tap()
         }
 
-        XCTAssertTrue(app.buttons["Open settings"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["chat.agent"].waitForExistence(timeout: 8))
     }
 
     @MainActor

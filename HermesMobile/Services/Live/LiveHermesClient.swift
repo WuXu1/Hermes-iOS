@@ -75,10 +75,12 @@ final class LiveHermesClient: HermesClientProtocol {
         let text: String
         let clientMessageId: UUID
         let attachments: [AttachmentPayload]?
+        let profile: String
     }
 
     var connectionStatus: ConnectionStatus = .disconnected
     var currentConversation: Conversation?
+    private(set) var activeProfile = RoleStyle.defaultProfileName
 
     private let apiClient: RelayAPIClient
     private let accessTokenProvider: @MainActor () async -> String?
@@ -97,12 +99,19 @@ final class LiveHermesClient: HermesClientProtocol {
         self.allowDemoFallback = allowDemoFallback
     }
 
+    func setActiveProfile(_ profile: String) {
+        activeProfile = profile
+        currentConversation = nil
+    }
+
+    private var currentPath: String { "conversations/current?profile=\(activeProfile)" }
+
     func connect() async {
         connectionStatus = .connecting
         do {
             let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
                 try await self.apiClient.get(
-                    path: "conversations/current",
+                    path: currentPath,
                     accessToken: token
                 )
             }
@@ -232,7 +241,7 @@ final class LiveHermesClient: HermesClientProtocol {
         do {
             let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
                 try await self.apiClient.get(
-                    path: "conversations/current",
+                    path: currentPath,
                     accessToken: token
                 )
             }
@@ -250,7 +259,7 @@ final class LiveHermesClient: HermesClientProtocol {
     func clearConversation() async throws -> Conversation {
         let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
             try await self.apiClient.post(
-                path: "conversations/current/clear",
+                path: "conversations/current/clear?profile=\(activeProfile)",
                 accessToken: token
             )
         }
@@ -290,7 +299,8 @@ final class LiveHermesClient: HermesClientProtocol {
             conversationId: currentConversation?.id,
             text: text,
             clientMessageId: clientMessageID,
-            attachments: payloads
+            attachments: payloads,
+            profile: activeProfile
         )
         try validateRequestBodySize(for: body)
         return body
@@ -425,7 +435,7 @@ final class LiveHermesClient: HermesClientProtocol {
         do {
             let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
                 try await self.apiClient.get(
-                    path: "conversations/current",
+                    path: currentPath,
                     accessToken: token
                 )
             }

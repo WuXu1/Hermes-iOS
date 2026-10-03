@@ -173,6 +173,7 @@ struct AppStoresTests {
 
     @MainActor
     private final class RecordingHermesClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
         var connectionStatus: ConnectionStatus = .connected
         var currentConversation: Conversation?
         var sendCallCount = 0
@@ -418,6 +419,19 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func switchingAgentReloadsChatForThatAgent() async {
+        let client = MockHermesClient()
+        let suiteName = "chat-agent-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let chat = ChatStore(hermesClient: client, persistence: UserDefaultsAppPersistenceStore(defaults: defaults))
+        client.setActiveProfile("coach")
+        await chat.reloadConversation()
+        #expect(client.activeProfile == "coach")
+        #expect(client.loadConversationProfiles.last == "coach")
+    }
+
+    @Test @MainActor
     func chatStorePassesClientMessageIDAndSkipsPendingDuplicate() async throws {
         let hermesClient = RecordingHermesClient()
         let suiteName = "chat-store-\(UUID().uuidString)"
@@ -447,6 +461,7 @@ struct AppStoresTests {
     @Test @MainActor
     func chatStorePreservesStreamingArtifactsAfterConversationRefresh() async throws {
         final class StreamingArtifactClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
 
@@ -534,6 +549,7 @@ struct AppStoresTests {
     @Test @MainActor
     func chatStorePreservesStreamingPlaceholderDuringConversationRefresh() async throws {
         final class PlaceholderRefreshClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
 
@@ -586,6 +602,7 @@ struct AppStoresTests {
     @Test @MainActor
     func chatStoreKeepsAcceptedMessagePendingUntilTerminalResultArrives() async throws {
         final class PendingUntilFinishedClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
 
@@ -639,6 +656,7 @@ struct AppStoresTests {
     @Test @MainActor
     func chatStoreRefreshesConversationWhenStreamingFailsAfterJobAccepted() async throws {
         final class StreamingFailureClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
             var loadConversationCallCount = 0
@@ -770,7 +788,7 @@ struct AppStoresTests {
                 """.data(using: .utf8)!
                 return (response, data)
 
-            case "https://relay.example.com/v1/conversations/current":
+            case "https://relay.example.com/v1/conversations/current?profile=default":
                 let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
                 let data = #"""
                 {"data":{
@@ -893,6 +911,7 @@ struct AppStoresTests {
     @Test @MainActor
     func chatStoreRetriesAttachmentOnlyMessageWithRestoredAttachments() async throws {
         final class AttachmentRetryClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
             var lastMessage: String?
@@ -962,6 +981,7 @@ struct AppStoresTests {
     @Test @MainActor
     func chatStorePreservesUserAttachmentPreviewMetadataAfterRefresh() async throws {
         final class AttachmentRoundTripClient: HermesClientProtocol {
+        func setActiveProfile(_ profile: String) {}
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
 
@@ -1363,7 +1383,7 @@ struct AppStoresTests {
         StubURLProtocol.requestHandler = { request in
             requestCount.value += 1
             let url = try #require(request.url)
-            #expect(url.absoluteString == "https://relay.example.com/v1/conversations/current")
+            #expect(url.absoluteString == "https://relay.example.com/v1/conversations/current?profile=default")
 
             let authHeader = request.value(forHTTPHeaderField: "Authorization")
             if authHeader == "Bearer expired-token" {
