@@ -4,6 +4,7 @@ struct JobDetailScreen: View {
     let jobID: String
 
     @Environment(AutomationsStore.self) private var store
+    @Environment(AgentStore.self) private var agents
     @Environment(ToastCenter.self) private var toasts
 
     @State private var runs: [CronRun]?
@@ -73,7 +74,7 @@ struct JobDetailScreen: View {
                         .foregroundStyle(Design.Colors.textTertiary)
                 }
                 if let profile = job.profile {
-                    Text("· \(RoleStyle.forProfile(profile).displayName)")
+                    Text("· \(agents.label(for: profile))")
                         .font(.caption)
                         .foregroundStyle(RoleStyle.forProfile(profile).color)
                 }

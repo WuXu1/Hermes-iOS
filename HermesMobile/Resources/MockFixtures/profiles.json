@@ -10,6 +10,7 @@
   {
    "name": "coder",
    "is_default": false,
+   "display_name": "Dev",
    "model": "deepseek-flash",
    "provider": "deepseek",
    "description": "Writes, runs and fixes code, scripts and automations, verifying they work before handing off for review."

@@ -33,13 +33,13 @@ struct HistorySheet: View {
             .background(Design.Colors.canvas)
             .overlay {
                 if store.sessions.isEmpty && !store.isLoading {
-                    EmptyStateView(systemImage: "bubble.left.and.bubble.right", title: "No chats yet", message: "Chats with \(agents.selectedStyle.displayName), from the app, Telegram and the Mac app, show up here.")
+                    EmptyStateView(systemImage: "bubble.left.and.bubble.right", title: "No chats yet", message: "Chats with \(agents.selectedLabel), from the app, Telegram and the Mac app, show up here.")
                 } else if !query.isEmpty && store.grouped(query: query).isEmpty {
                     ContentUnavailableView.search(text: query)
                 }
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search chats")
-            .navigationTitle("\(agents.selectedStyle.displayName) chats")
+            .navigationTitle("\(agents.selectedLabel) chats")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }

@@ -16,7 +16,7 @@ struct LibraryScreen: View {
             LazyVStack(alignment: .leading, spacing: Design.Spacing.lg) {
                 Picker("Agent", selection: Binding(get: { store.profile }, set: selectAgent)) {
                     ForEach(agents.ordered) { agent in
-                        Text(RoleStyle.forProfile(agent.name).displayName).tag(agent.name)
+                        Text(agents.label(for: agent.name)).tag(agent.name)
                     }
                 }
                 .pickerStyle(.segmented)

@@ -4,6 +4,7 @@ struct TaskDetailScreen: View {
     let taskID: String
 
     @Environment(TeamStore.self) private var store
+    @Environment(AgentStore.self) private var agents
     @Environment(ToastCenter.self) private var toasts
     @Environment(\.dismiss) private var dismiss
 
@@ -72,7 +73,7 @@ struct TaskDetailScreen: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: Design.Spacing.xs) {
                     task.status.pill
-                    Text(style.displayName)
+                    Text(agents.label(for: task.assignee))
                         .font(.caption)
                         .foregroundStyle(style.color)
                     Text(RelativeTime.short(task.createdAt))
@@ -237,8 +238,8 @@ struct TaskDetailScreen: View {
                 if task.status.isOpen {
                     Menu("Reassign") {
                         ForEach(store.assignableRoles.filter { $0.name != task.assignee }) { profile in
-                            Button(RoleStyle.forProfile(profile.name).displayName) {
-                                perform("Reassigned to \(RoleStyle.forProfile(profile.name).displayName)", systemImage: "arrow.triangle.swap") {
+                            Button(agents.label(for: profile.name)) {
+                                perform("Reassigned to \(agents.label(for: profile.name))", systemImage: "arrow.triangle.swap") {
                                     try await store.reassign(task, to: profile.name)
                                 }
                             }
@@ -353,13 +354,13 @@ struct TaskDetailScreen: View {
     private var timeline: [TimelineEntry] {
         guard let detail else { return [] }
         let events = detail.events.compactMap { event -> TimelineEntry? in
-            guard let title = Self.describe(event) else { return nil }
+            guard let title = describe(event) else { return nil }
             return TimelineEntry(id: "e\(event.id)", title: title, body: nil, date: event.createdAt, isComment: false)
         }
         let comments = detail.comments.map { comment in
             TimelineEntry(
                 id: "c\(comment.id)",
-                title: comment.author.map { $0 == "you" || $0 == "dashboard" ? "You" : RoleStyle.forProfile($0).displayName } ?? "Comment",
+                title: comment.author.map { $0 == "you" || $0 == "dashboard" ? "You" : agents.label(for: $0) } ?? "Comment",
                 body: comment.body,
                 date: comment.createdAt,
                 isComment: true
@@ -368,8 +369,8 @@ struct TaskDetailScreen: View {
         return (events + comments).sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
-    private static func describe(_ event: KanbanEvent) -> String? {
-        let assignee = event.payload?["assignee"]?.stringValue.map { RoleStyle.forProfile($0).displayName }
+    private func describe(_ event: KanbanEvent) -> String? {
+        let assignee = event.payload?["assignee"]?.stringValue.map { agents.label(for: $0) }
         switch event.kind {
         case "created": return assignee.map { "Created for \($0)" } ?? "Created"
         case "claimed", "spawned": return "Picked up"

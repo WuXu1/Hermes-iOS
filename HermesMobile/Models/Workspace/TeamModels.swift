@@ -205,12 +205,23 @@ struct HermesProfile: Decodable, Identifiable, Hashable, Sendable {
     var model: String?
     var provider: String?
     var description: String?
+    var displayName: String?
 
     var id: String { name }
+
+    init(name: String, isDefault: Bool, model: String?, provider: String?, description: String?, displayName: String? = nil) {
+        self.name = name
+        self.isDefault = isDefault
+        self.model = model
+        self.provider = provider
+        self.description = description
+        self.displayName = displayName
+    }
 
     enum CodingKeys: String, CodingKey {
         case name, model, provider, description
         case isDefault = "is_default"
+        case displayName = "display_name"
     }
 }
 

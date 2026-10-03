@@ -249,7 +249,7 @@ struct NewAutomationSheet: View {
                 SectionHeader(title: "Who runs it")
                 Picker("Role", selection: $profile) {
                     ForEach(agents.ordered) { role in
-                        Text(RoleStyle.forProfile(role.name).displayName).tag(role.name)
+                        Text(agents.label(for: role.name)).tag(role.name)
                     }
                 }
                 .pickerStyle(.menu)

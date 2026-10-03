@@ -4,6 +4,8 @@ import SwiftUI
 struct TaskCardView: View {
     let task: KanbanTask
 
+    @Environment(AgentStore.self) private var agents
+
     var body: some View {
         let style = RoleStyle.forProfile(task.assignee)
         HStack(alignment: .top, spacing: Design.Spacing.sm) {
@@ -16,7 +18,7 @@ struct TaskCardView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: Design.Spacing.xs) {
                     task.status.pill
-                    Text(metaLine(style: style))
+                    Text(metaLine)
                         .font(.caption)
                         .foregroundStyle(Design.Colors.textTertiary)
                         .lineLimit(1)
@@ -42,14 +44,14 @@ struct TaskCardView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func metaLine(style: RoleStyle) -> String {
+    private var metaLine: String {
         let when: String
         switch task.status {
         case .running: when = "started \(RelativeTime.short(task.startedAt ?? task.createdAt))"
         case .done: when = "finished \(RelativeTime.short(task.completedAt))"
         default: when = RelativeTime.short(task.createdAt)
         }
-        return [style.displayName, when].filter { !$0.isEmpty }.joined(separator: " · ")
+        return [agents.label(for: task.assignee), when].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
 

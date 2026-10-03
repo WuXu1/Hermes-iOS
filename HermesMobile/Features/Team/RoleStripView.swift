@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Horizontal strip of role avatars. Tap filters the board; long-press opens the role.
 struct RoleStripView: View {
+    @Environment(AgentStore.self) private var agents
     let roles: [HermesProfile]
     let selectedRole: String?
     let activity: (String) -> (isWorking: Bool, openCount: Int)
@@ -44,7 +45,7 @@ struct RoleStripView: View {
                             .offset(x: 4, y: -4)
                     }
                 }
-            Text(profile.isDefault ? "Chief" : style.displayName)
+            Text(profile.isDefault ? "Chief" : agents.label(for: profile.name))
                 .font(.caption.weight(isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? Design.Colors.textPrimary : Design.Colors.textSecondary)
                 .lineLimit(1)
@@ -59,7 +60,7 @@ struct RoleStripView: View {
         }
         .onLongPressGesture { onOpenRole(profile) }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(style.displayName), \(state.openCount) open task\(state.openCount == 1 ? "" : "s")\(state.isWorking ? ", working" : "")")
+        .accessibilityLabel("\(agents.label(for: profile.name)), \(state.openCount) open task\(state.openCount == 1 ? "" : "s")\(state.isWorking ? ", working" : "")")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityHint("Filters the board. Long-press for role details.")
         .accessibilityAction(named: "Role details") { onOpenRole(profile) }

@@ -5,6 +5,7 @@ struct RoleSheet: View {
     let profile: HermesProfile
 
     @Environment(TeamStore.self) private var store
+    @Environment(AgentStore.self) private var agents
     @Environment(TabRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
 
@@ -16,7 +17,7 @@ struct RoleSheet: View {
                 VStack(alignment: .leading, spacing: Design.Spacing.lg) {
                     VStack(spacing: Design.Spacing.sm) {
                         RoleAvatar(style: style, size: .large, isLive: store.activity(for: profile.name).isWorking)
-                        Text(style.displayName)
+                        Text(agents.label(for: profile.name))
                             .font(.title2.weight(.bold))
                         if let model = profile.model {
                             Text(model)
@@ -55,7 +56,7 @@ struct RoleSheet: View {
                                 dismiss()
                                 router.presentSheet(.newTask(prefill: KanbanTaskDraft(title: "", assignee: profile.name)))
                             } label: {
-                                row("Give \(style.displayName) a task", systemImage: "plus.circle", detail: nil)
+                                row("Give \(agents.label(for: profile.name)) a task", systemImage: "plus.circle", detail: nil)
                             }
                         }
                     }

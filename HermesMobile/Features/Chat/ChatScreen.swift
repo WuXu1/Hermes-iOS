@@ -124,7 +124,7 @@ struct ChatScreen: View {
                 Picker("Agent", selection: Binding(get: { agentStore.selected }, set: { agentStore.select($0) })) {
                     ForEach(agentStore.ordered) { profile in
                         let style = RoleStyle.forProfile(profile.name)
-                        Label(style.displayName, systemImage: style.symbol).tag(profile.name)
+                        Label(agentStore.label(for: profile.name), systemImage: style.symbol).tag(profile.name)
                     }
                 }
                 Divider()
@@ -132,7 +132,7 @@ struct ChatScreen: View {
             } label: {
                 RoleAvatar(style: agentStore.selectedStyle, size: .small, isLive: chatStore.isStreaming)
             }
-            .accessibilityLabel("Agent: \(agentStore.selectedStyle.displayName)")
+            .accessibilityLabel("Agent: \(agentStore.selectedLabel)")
             .accessibilityIdentifier("chat.agent")
         }
         ToolbarItem(placement: .principal) {
@@ -167,8 +167,8 @@ struct ChatScreen: View {
     }
 
     private var conversationTitle: String {
-        let title = currentSession?.displayTitle ?? chatStore.conversation?.title ?? agentStore.selectedStyle.displayName
-        return title.isEmpty ? agentStore.selectedStyle.displayName : title
+        let title = currentSession?.displayTitle ?? chatStore.conversation?.title ?? agentStore.selectedLabel
+        return title.isEmpty ? agentStore.selectedLabel : title
     }
 
     private var currentSession: HermesSessionSummary? {
@@ -585,7 +585,7 @@ struct ChatScreen: View {
                 let task = try await teamStore.create(draft, reviewAfter: false)
                 let router = router
                 toasts.show(
-                    "Assigned to \(RoleStyle.forProfile(role).displayName)",
+                    "Assigned to \(agentStore.label(for: role))",
                     systemImage: "person.badge.plus",
                     actionTitle: "View"
                 ) {

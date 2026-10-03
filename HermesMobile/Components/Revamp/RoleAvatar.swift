@@ -20,7 +20,10 @@ struct RoleAvatar: View {
     var size: Size = .medium
     var isLive = false
 
+    @Environment(AgentStore.self) private var agents: AgentStore?
     @State private var pulse = false
+
+    private var label: String { agents?.label(for: style.name) ?? style.displayName }
 
     var body: some View {
         ZStack {
@@ -47,6 +50,6 @@ struct RoleAvatar: View {
             }
         }
         .accessibilityElement()
-        .accessibilityLabel(isLive ? "\(style.displayName), working" : style.displayName)
+        .accessibilityLabel(isLive ? "\(label), working" : label)
     }
 }

@@ -34,6 +34,19 @@ final class AgentStore {
 
     var selectedStyle: RoleStyle { RoleStyle.forProfile(selected) }
 
+    /// The one place an agent's user-visible name is decided: the owner's Hermes
+    /// `display_name` when set, otherwise the built-in role name.
+    func label(for profileName: String?) -> String {
+        if let profileName,
+           let custom = profiles.first(where: { $0.name == profileName })?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !custom.isEmpty {
+            return custom
+        }
+        return RoleStyle.forProfile(profileName).displayName
+    }
+
+    var selectedLabel: String { label(for: selected) }
+
     func refresh() async {
         guard let loaded = try? await api.profiles(), !loaded.isEmpty else { return }
         profiles = loaded
@@ -55,8 +68,8 @@ final class AgentStore {
     }
 
     #if DEBUG
-    func setProfilesForTesting(_ names: [String]) {
-        profiles = names.map { HermesProfile(name: $0, isDefault: $0 == RoleStyle.defaultProfileName, model: nil, provider: nil, description: nil) }
+    func setProfilesForTesting(_ names: [String], displayNames: [String: String?] = [:]) {
+        profiles = names.map { HermesProfile(name: $0, isDefault: $0 == RoleStyle.defaultProfileName, model: nil, provider: nil, description: nil, displayName: displayNames[$0] ?? nil) }
     }
     #endif
 }

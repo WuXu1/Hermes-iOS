@@ -47,7 +47,7 @@ struct HermesOverviewSection: View {
                         HStack(spacing: Design.Spacing.sm) {
                             RoleAvatar(style: style, size: .small, isLive: false)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(style.displayName)
+                                Text(agents.label(for: row.name))
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(Design.Colors.textPrimary)
                                 if let model = row.model {

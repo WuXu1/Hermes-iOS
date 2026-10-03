@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TeamScreen: View {
     @Environment(TeamStore.self) private var store
+    @Environment(AgentStore.self) private var agents
     @Environment(TabRouter.self) private var router
     @State private var openedRole: HermesProfile?
 
@@ -74,7 +75,7 @@ struct TeamScreen: View {
             if let role = store.selectedRole {
                 EmptyStateView(
                     systemImage: RoleStyle.forProfile(role).symbol,
-                    title: "Nothing for \(RoleStyle.forProfile(role).displayName)",
+                    title: "Nothing for \(agents.label(for: role))",
                     message: "No tasks are assigned to this role right now.",
                     actionTitle: "Show everyone"
                 ) {

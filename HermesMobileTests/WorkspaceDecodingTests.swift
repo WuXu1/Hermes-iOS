@@ -9,6 +9,15 @@ struct WorkspaceDecodingTests {
         return try #require(value, "fixture \(name).json should decode as \(T.self)")
     }
 
+    @Test func profileDecodesOptionalDisplayName() throws {
+        let named = try JSONDecoder().decode(HermesProfile.self, from: Data(#"{"name":"developer","is_default":false,"display_name":"Sample"}"#.utf8))
+        #expect(named.displayName == "Sample")
+        let plain = try JSONDecoder().decode(HermesProfile.self, from: Data(#"{"name":"developer","is_default":false}"#.utf8))
+        #expect(plain.displayName == nil)
+        let null = try JSONDecoder().decode(HermesProfile.self, from: Data(#"{"name":"developer","is_default":false,"display_name":null}"#.utf8))
+        #expect(null.displayName == nil)
+    }
+
     @Test func boardDecodesEveryStatusColumn() throws {
         let board = try fixture("board", as: KanbanBoard.self)
         #expect(board.columns.map(\.name).contains("blocked"))

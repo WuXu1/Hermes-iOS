@@ -16,6 +16,7 @@ struct ChatInputBar: View {
 
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
+    @Environment(AgentStore.self) private var agents
     @Environment(TabRouter.self) private var router
 
     @State private var speechService = LiveSpeechService()
@@ -102,7 +103,7 @@ struct ChatInputBar: View {
 
                 // Text input area
                 TextField(
-                    speechService.isListening ? "Listening..." : assignedStyle.map { "Describe the task for \($0.displayName)" } ?? "Reply to Hermes",
+                    speechService.isListening ? "Listening..." : assignedStyle.map { "Describe the task for \(agents.label(for: $0.name))" } ?? "Reply to Hermes",
                     text: $text,
                     axis: .vertical
                 )
@@ -288,7 +289,7 @@ struct ChatInputBar: View {
                     .background(assignedStyle?.color ?? Design.Brand.accent)
                     .clipShape(Circle())
             }
-            .accessibilityLabel(assignedStyle.map { "Assign to \($0.displayName)" } ?? "Send message")
+            .accessibilityLabel(assignedStyle.map { "Assign to \(agents.label(for: $0.name))" } ?? "Send message")
             .transition(.scale.combined(with: .opacity))
         }
     }
@@ -304,7 +305,7 @@ struct ChatInputBar: View {
                         assignee.wrappedValue = profile.name
                         isFocused.wrappedValue = true
                     } label: {
-                        Label(style.displayName, systemImage: style.symbol)
+                        Label(agents.label(for: profile.name), systemImage: style.symbol)
                     }
                 }
             }
@@ -327,7 +328,7 @@ struct ChatInputBar: View {
         HStack(spacing: Design.Spacing.xxs) {
             Image(systemName: "arrow.turn.down.right")
                 .font(.caption2.weight(.bold))
-            Text("New task for \(style.displayName)")
+            Text("New task for \(agents.label(for: style.name))")
                 .font(.caption.weight(.semibold))
             Button {
                 assignee.wrappedValue = nil

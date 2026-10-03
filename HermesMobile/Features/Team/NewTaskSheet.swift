@@ -5,6 +5,7 @@ struct NewTaskSheet: View {
     var prefill: KanbanTaskDraft?
 
     @Environment(TeamStore.self) private var store
+    @Environment(AgentStore.self) private var agents
     @Environment(ToastCenter.self) private var toasts
     @Environment(TabRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
@@ -108,7 +109,7 @@ struct NewTaskSheet: View {
             VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                 HStack {
                     RoleAvatar(style: style, size: .small)
-                    Text(style.displayName)
+                    Text(agents.label(for: profile.name))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Design.Colors.textPrimary)
                     Spacer(minLength: 0)
@@ -163,7 +164,7 @@ struct NewTaskSheet: View {
                 let task = try await store.create(draft, reviewAfter: reviewAfter && assignee != "reviewer")
                 dismiss()
                 let router = router
-                toasts.show("Assigned to \(RoleStyle.forProfile(assignee).displayName)", systemImage: "person.badge.plus", actionTitle: "View") {
+                toasts.show("Assigned to \(agents.label(for: assignee))", systemImage: "person.badge.plus", actionTitle: "View") {
                     router.show(TaskRoute(id: task.id), in: .team)
                 }
             } catch {
