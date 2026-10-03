@@ -39,6 +39,13 @@ struct ChatScreen: View {
                 } else {
                     messageList
                 }
+                if currentSession?.sourceLabel == "Telegram" {
+                    Text("Replies here stay in the app; they won't appear in Telegram.")
+                        .font(.caption)
+                        .foregroundStyle(Design.Colors.textTertiary)
+                        .padding(.horizontal, Design.Spacing.md)
+                        .padding(.bottom, Design.Spacing.xs)
+                }
                 ChatInputBar(
                     text: $messageText,
                     pendingAttachments: $pendingAttachments,
@@ -59,7 +66,7 @@ struct ChatScreen: View {
             chatStore.setPollingEnabled(true)
             await hostStore.refresh()
             await chatStore.loadConversationIfNeeded()
-            await conversationsStore.refresh()
+            await conversationsStore.refresh(profile: agentStore.selected)
         }
         .task {
             while !Task.isCancelled {
@@ -160,8 +167,12 @@ struct ChatScreen: View {
     }
 
     private var conversationTitle: String {
-        let title = conversationsStore.current?.title ?? chatStore.conversation?.title ?? agentStore.selectedStyle.displayName
+        let title = currentSession?.displayTitle ?? chatStore.conversation?.title ?? agentStore.selectedStyle.displayName
         return title.isEmpty ? agentStore.selectedStyle.displayName : title
+    }
+
+    private var currentSession: HermesSessionSummary? {
+        conversationsStore.sessions.first { $0.id == conversationsStore.currentSessionID }
     }
 
     private var isEmptyConversation: Bool {
@@ -178,7 +189,7 @@ struct ChatScreen: View {
         }
         Task {
             do {
-                try await conversationsStore.startNew()
+                try await conversationsStore.startNew(profile: agentStore.selected)
             } catch {
                 toasts.showError(error.localizedDescription)
             }
@@ -687,7 +698,7 @@ struct ChatScreen: View {
         do {
             try await chatStore.clearConversation()
             showStatusCard = false
-            await conversationsStore.refresh()
+            await conversationsStore.refresh(profile: agentStore.selected)
         } catch {
             // Conversation unchanged on failure — user can retry
         }

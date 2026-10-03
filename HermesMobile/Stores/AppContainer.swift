@@ -248,7 +248,8 @@ final class AppContainer {
         container.agentStore.onSelectionChanged = { [weak chatStore = container.chatStore, weak conversationsStore = container.conversationsStore] profile in
             hermesClient.setActiveProfile(profile)
             await chatStore?.reloadConversation()
-            await conversationsStore?.refresh()
+            conversationsStore?.currentSessionID = nil
+            await conversationsStore?.refresh(profile: profile)
         }
 
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
@@ -278,6 +279,9 @@ final class AppContainer {
 
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
+            if let conversation = container?.chatStore.conversation {
+                container?.conversationsStore.currentSessionID = conversation.hermesSessionID
+            }
             container?.updateWidgetData()
         }
         container.talkStore.onSessionStateChanged = { [weak container] in

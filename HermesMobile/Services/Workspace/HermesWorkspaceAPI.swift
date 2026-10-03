@@ -169,28 +169,30 @@ struct HermesWorkspaceAPI {
         try await transport.get("hermes/api/analytics/usage", query: ["days": String(days)])
     }
 
-    // MARK: Conversations
+    // MARK: Conversations (Hermes sessions for one agent)
 
-    func conversations() async throws -> [ConversationSummary] {
-        let response: ConversationsResponse = try await transport.get("conversations")
-        return response.conversations
+    func sessions(profile: String) async throws -> [HermesSessionSummary] {
+        let response: HermesSessionsResponse = try await transport.get(
+            "hermes/api/sessions",
+            query: ["profile": profile, "order": "recent", "limit": "50", "exclude_sources": "cron,subagent"]
+        )
+        return response.sessions
     }
 
-    func newConversation() async throws -> ConversationSummary {
-        let response: ConversationResponse = try await transport.send(.post, "conversations", query: [:], body: nil)
-        return response.conversation
+    func openSession(profile: String, id: String) async throws {
+        try await transport.perform(.post, "conversations/open", body: ConversationOpen(profile: profile, sessionId: id))
     }
 
-    func activateConversation(id: String) async throws {
-        try await transport.perform(.post, "conversations/\(id)/activate")
+    func newConversation(profile: String) async throws {
+        try await transport.perform(.post, "conversations", body: ConversationCreate(profile: profile))
     }
 
-    func renameConversation(id: String, title: String) async throws {
-        try await transport.perform(.patch, "conversations/\(id)", body: ConversationRename(title: title))
+    func renameSession(id: String, title: String, profile: String) async throws {
+        try await transport.perform(.patch, "hermes/api/sessions/\(id)", query: ["profile": profile], body: SessionPatch(title: title, archived: nil))
     }
 
-    func archiveConversation(id: String) async throws {
-        try await transport.perform(.delete, "conversations/\(id)")
+    func archiveSession(id: String, profile: String) async throws {
+        try await transport.perform(.patch, "hermes/api/sessions/\(id)", query: ["profile": profile], body: SessionPatch(title: nil, archived: true))
     }
 
     private static func profileQuery(_ profile: String?) -> [String: String] {

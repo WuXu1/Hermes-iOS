@@ -92,7 +92,7 @@ struct ConversationsStoreTests {
     @Test func groupsByRecency() async {
         let transport = MockWorkspaceTransport()
         let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
-        await store.refresh()
+        await store.refresh(profile: "default")
 
         // Fixture times are relative to 2026-09-28 16:46 UTC.
         let now = Date(timeIntervalSince1970: 1_790_614_000)
@@ -101,27 +101,78 @@ struct ConversationsStoreTests {
 
         let groups = store.grouped(now: now, calendar: calendar)
         #expect(groups.map(\.title) == ["Today", "This week", "Earlier"])
-        #expect(groups[0].items.map(\.title) == ["Plan a weekend in Lisbon", "Monitor for photo editing"])
-        #expect(groups[2].items.map(\.title) == ["Houseplant care"])
+        #expect(groups[0].items.map(\.displayTitle) == ["Plan a weekend in Lisbon", "Quiz prep"])
+        #expect(groups[2].items.map(\.displayTitle) == ["Houseplant care"])
     }
 
     @Test func searchFiltersTitleAndPreview() async {
         let store = ConversationsStore(api: HermesWorkspaceAPI(transport: MockWorkspaceTransport()))
-        await store.refresh()
-        let items = store.grouped(query: "coder").flatMap(\.items)
-        #expect(items.map(\.title) == ["Bank CSV cleanup"])
+        await store.refresh(profile: "default")
+        let items = store.grouped(query: "quiz me").flatMap(\.items)
+        #expect(items.map(\.displayTitle) == ["Quiz prep"])
     }
 
-    @Test func startNewMakesItCurrentAndNotifies() async throws {
-        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: MockWorkspaceTransport()))
+    @Test func listRequestIsScopedToTheAgent() async {
+        let transport = MockWorkspaceTransport()
+        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
+        await store.refresh(profile: "tutor")
+        #expect(transport.lastQuery["profile"] == "tutor")
+        #expect(transport.lastQuery["exclude_sources"] == "cron,subagent")
+    }
+
+    @Test func openBindsTheSessionAndNotifies() async throws {
+        let transport = MockWorkspaceTransport()
+        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
         var switched = 0
         store.onConversationSwitched = { switched += 1 }
-        await store.refresh()
+        await store.refresh(profile: "tutor")
+        let telegram = try #require(store.sessions.first { $0.sourceLabel == "Telegram" })
 
-        try await store.startNew()
+        try await store.open(telegram, profile: "tutor")
 
-        #expect(store.current?.title == "New chat")
+        #expect(store.currentSessionID == telegram.id)
+        #expect(transport.openedSessions == [.init(profile: "tutor", sessionId: telegram.id)])
         #expect(switched == 1)
+    }
+
+    @Test func startNewIsForTheSelectedAgent() async throws {
+        let transport = MockWorkspaceTransport()
+        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
+        var switched = 0
+        store.onConversationSwitched = { switched += 1 }
+        store.currentSessionID = "old"
+
+        try await store.startNew(profile: "coach")
+
+        #expect(transport.createdConversations == ["coach"])
+        #expect(store.currentSessionID == nil)
+        #expect(switched == 1)
+    }
+
+    @Test func renameAndArchiveGoThroughHermes() async throws {
+        let transport = MockWorkspaceTransport()
+        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
+        await store.refresh(profile: "default")
+        let first = try #require(store.sessions.first)
+
+        try await store.rename(first, to: "  Renamed  ", profile: "default")
+        #expect(store.sessions.first { $0.id == first.id }?.displayTitle == "Renamed")
+
+        try await store.archive(first, profile: "default")
+        #expect(!store.sessions.contains { $0.id == first.id })
+    }
+
+    @Test func archivingTheCurrentChatStartsANewOne() async throws {
+        let transport = MockWorkspaceTransport()
+        let store = ConversationsStore(api: HermesWorkspaceAPI(transport: transport))
+        await store.refresh(profile: "default")
+        let first = try #require(store.sessions.first)
+        store.currentSessionID = first.id
+
+        try await store.archive(first, profile: "default")
+
+        #expect(store.currentSessionID == nil)
+        #expect(transport.createdConversations == ["default"])
     }
 }
 

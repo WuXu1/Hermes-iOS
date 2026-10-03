@@ -81,11 +81,18 @@ struct WorkspaceDecodingTests {
         #expect(try fixture("profiles", as: ProfilesResponse.self).profiles.count == 5)
     }
 
-    @Test func conversationsDecodeRelayDates() throws {
-        let conversations = try fixture("conversations", as: ConversationsResponse.self).conversations
-        #expect(conversations.first?.isCurrent == true)
-        let allDated = conversations.allSatisfy { $0.lastMessageAt != nil }
-        #expect(allDated)
+    @Test func decodesHermesSessionList() throws {
+        let json = """
+        {"sessions":[{"id":"20261001_abc","title":"Quiz prep","source":"telegram","preview":"quiz me","last_active":1759363200.5,"message_count":12,"archived":false},
+                     {"id":"20261002_def","title":null,"source":"tool","last_active":1759449600,"message_count":2}],
+         "total":2,"limit":50,"offset":0}
+        """.data(using: .utf8)!
+        let response = try JSONDecoder().decode(HermesSessionsResponse.self, from: json)
+        #expect(response.sessions.map(\.id) == ["20261001_abc", "20261002_def"])
+        #expect(response.sessions[0].sourceLabel == "Telegram")
+        #expect(response.sessions[1].sourceLabel == "App")
+        #expect(response.sessions[1].displayTitle == "New chat")
+        #expect(response.sessions[0].lastActive != nil)
     }
 
     @Test func liveTransportMapsRelayErrors() {

@@ -1,0 +1,11 @@
+{
+ "sessions": [
+  {"id": "20260928_a1", "title": "Plan a weekend in Lisbon", "source": "tool", "preview": "Here's a two-day plan that keeps walking to a minimum", "last_active": 1790613400, "message_count": 8},
+  {"id": "20260928_b2", "title": "Quiz prep", "source": "telegram", "preview": "quiz me on chapter 4", "last_active": 1790609000.5, "message_count": 12},
+  {"id": "20260925_c3", "title": "Monitor for photo editing", "source": "desktop", "preview": "I've asked the researcher to shortlist three options.", "last_active": 1790300000, "message_count": 6},
+  {"id": "20260909_d4", "title": "Houseplant care", "source": "tool", "preview": "Water the fern twice a week.", "last_active": 1789000000, "message_count": 4}
+ ],
+ "total": 4,
+ "limit": 50,
+ "offset": 0
+}

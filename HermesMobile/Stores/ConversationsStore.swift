@@ -1,18 +1,19 @@
 import Foundation
 
-/// Chat history: the user's conversations on the relay and switching between them.
+/// Chat history for one agent: its Hermes sessions, including Telegram and Mac app chats.
 @MainActor
 @Observable
 final class ConversationsStore {
     struct Group: Identifiable, Equatable {
         let title: String
-        let items: [ConversationSummary]
+        let items: [HermesSessionSummary]
         var id: String { title }
     }
 
-    private(set) var conversations: [ConversationSummary] = []
+    private(set) var sessions: [HermesSessionSummary] = []
     private(set) var isLoading = false
     private(set) var isOffline = false
+    var currentSessionID: String?
 
     /// Called after the current conversation changes, so chat can reload.
     var onConversationSwitched: (@MainActor () async -> Void)?
@@ -23,38 +24,36 @@ final class ConversationsStore {
         self.api = api
     }
 
-    var current: ConversationSummary? { conversations.first(where: \.isCurrent) }
-
     func grouped(query: String = "", now: Date = Date(), calendar: Calendar = .current) -> [Group] {
         let needle = query.trimmingCharacters(in: .whitespaces)
-        let matches = conversations.filter { conversation in
+        let matches = sessions.filter { session in
             needle.isEmpty
-                || conversation.title.localizedCaseInsensitiveContains(needle)
-                || conversation.preview.localizedCaseInsensitiveContains(needle)
+                || session.displayTitle.localizedCaseInsensitiveContains(needle)
+                || (session.preview ?? "").localizedCaseInsensitiveContains(needle)
         }
-        var today: [ConversationSummary] = []
-        var week: [ConversationSummary] = []
-        var earlier: [ConversationSummary] = []
+        var today: [HermesSessionSummary] = []
+        var week: [HermesSessionSummary] = []
+        var earlier: [HermesSessionSummary] = []
         let weekAgo = now.addingTimeInterval(-7 * 24 * 3600)
-        for conversation in matches {
-            let date = conversation.lastMessageAt ?? .distantPast
+        for session in matches {
+            let date = session.lastActive ?? .distantPast
             if calendar.isDate(date, inSameDayAs: now) {
-                today.append(conversation)
+                today.append(session)
             } else if date > weekAgo {
-                week.append(conversation)
+                week.append(session)
             } else {
-                earlier.append(conversation)
+                earlier.append(session)
             }
         }
         return [Group(title: "Today", items: today), Group(title: "This week", items: week), Group(title: "Earlier", items: earlier)]
             .filter { !$0.items.isEmpty }
     }
 
-    func refresh() async {
+    func refresh(profile: String) async {
         isLoading = true
         defer { isLoading = false }
         do {
-            conversations = try await api.conversations()
+            sessions = try await api.sessions(profile: profile)
             isOffline = false
         } catch {
             isOffline = true
@@ -62,35 +61,36 @@ final class ConversationsStore {
     }
 
     func reset() {
-        conversations = []
+        sessions = []
+        currentSessionID = nil
         isOffline = false
     }
 
-    func startNew() async throws {
-        _ = try await api.newConversation()
-        await refresh()
+    func startNew(profile: String) async throws {
+        try await api.newConversation(profile: profile)
+        currentSessionID = nil
         await onConversationSwitched?()
     }
 
-    func activate(_ conversation: ConversationSummary) async throws {
-        guard !conversation.isCurrent else { return }
-        try await api.activateConversation(id: conversation.id)
-        await refresh()
+    func open(_ session: HermesSessionSummary, profile: String) async throws {
+        guard session.id != currentSessionID else { return }
+        try await api.openSession(profile: profile, id: session.id)
+        currentSessionID = session.id
         await onConversationSwitched?()
     }
 
-    func rename(_ conversation: ConversationSummary, to title: String) async throws {
+    func rename(_ session: HermesSessionSummary, to title: String, profile: String) async throws {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        try await api.renameConversation(id: conversation.id, title: trimmed)
-        await refresh()
+        try await api.renameSession(id: session.id, title: trimmed, profile: profile)
+        await refresh(profile: profile)
     }
 
-    func archive(_ conversation: ConversationSummary) async throws {
-        try await api.archiveConversation(id: conversation.id)
-        await refresh()
-        if conversation.isCurrent {
-            await onConversationSwitched?()
+    func archive(_ session: HermesSessionSummary, profile: String) async throws {
+        try await api.archiveSession(id: session.id, profile: profile)
+        await refresh(profile: profile)
+        if session.id == currentSessionID {
+            try await startNew(profile: profile)
         }
     }
 }

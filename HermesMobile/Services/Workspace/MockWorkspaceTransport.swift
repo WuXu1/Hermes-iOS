@@ -17,7 +17,15 @@ final class MockWorkspaceTransport: WorkspaceTransport {
     private(set) var jobs: [CronJob]
     private(set) var memory: HermesMemory
     private(set) var skills: [HermesSkill]
-    private(set) var conversations: [ConversationSummary]
+    private(set) var sessions: [HermesSessionSummary]
+    private(set) var lastQuery: [String: String] = [:]
+    private(set) var openedSessions: [OpenedSession] = []
+    private(set) var createdConversations: [String] = []
+
+    struct OpenedSession: Equatable {
+        var profile: String
+        var sessionId: String
+    }
     private var comments: [String: [KanbanComment]] = [:]
     private var souls: [String: String] = [:]
     private var nextID = 1
@@ -31,7 +39,7 @@ final class MockWorkspaceTransport: WorkspaceTransport {
         jobs = Self.load("cron_jobs", bundle: bundle) ?? []
         memory = Self.load("memory", bundle: bundle) ?? .empty
         skills = Self.load("skills", bundle: bundle) ?? []
-        conversations = (Self.load("conversations", bundle: bundle) as ConversationsResponse?)?.conversations ?? []
+        sessions = (Self.load("sessions", bundle: bundle) as HermesSessionsResponse?)?.sessions ?? []
     }
 
     func send<Response: Decodable>(
@@ -41,6 +49,7 @@ final class MockWorkspaceTransport: WorkspaceTransport {
         body: (any Encodable)?
     ) async throws -> Response {
         requests.append((method, path))
+        lastQuery = query
         guard mode == .online else { throw WorkspaceError.hostOffline }
 
         let value = try handle(method, path.split(separator: "/").map(String.init), query: query, body: body)
@@ -185,23 +194,20 @@ final class MockWorkspaceTransport: WorkspaceTransport {
         if route(.get, "hermes/api/analytics/usage") != nil { return try fixture("usage") as HermesUsage }
 
         // Conversations
-        if route(.get, "conversations") != nil { return ConversationsResponse(conversations: conversations) }
+        if route(.get, "hermes/api/sessions") != nil { return HermesSessionsResponse(sessions: sessions) }
+        if let id = route(.patch, "hermes/api/sessions/*")?.first {
+            let patch = try decode(body, as: SessionPatchBody.self)
+            if patch.archived == true { sessions.removeAll { $0.id == id } }
+            if let title = patch.title, let index = sessions.firstIndex(where: { $0.id == id }) { sessions[index].title = title }
+            return IgnoredResponse()
+        }
+        if route(.post, "conversations/open") != nil {
+            let open = try decode(body, as: ConversationOpenBody.self)
+            openedSessions.append(OpenedSession(profile: open.profile, sessionId: open.sessionId))
+            return IgnoredResponse()
+        }
         if route(.post, "conversations") != nil {
-            let summary = ConversationSummary(id: UUID().uuidString, title: "New chat", preview: "", lastMessageAt: Date(), isCurrent: true)
-            conversations = [summary] + conversations.map { var copy = $0; copy.isCurrent = false; return copy }
-            return ConversationResponse(conversation: summary)
-        }
-        if let id = route(.post, "conversations/*/activate")?.first {
-            conversations = conversations.map { var copy = $0; copy.isCurrent = copy.id == id; return copy }
-            return IgnoredResponse()
-        }
-        if let id = route(.patch, "conversations/*")?.first {
-            let rename = try decode(body, as: RenameBody.self)
-            if let index = conversations.firstIndex(where: { $0.id == id }) { conversations[index].title = rename.title }
-            return IgnoredResponse()
-        }
-        if let id = route(.delete, "conversations/*")?.first {
-            conversations.removeAll { $0.id == id }
+            createdConversations.append(try decode(body, as: ConversationCreateBody.self).profile)
             return IgnoredResponse()
         }
 
@@ -313,5 +319,7 @@ final class MockWorkspaceTransport: WorkspaceTransport {
     private struct BlueprintBody: Decodable { var blueprint: String }
     private struct MemoryBody: Decodable { var content: String }
     private struct ToggleBody: Decodable { var name: String; var enabled: Bool }
-    private struct RenameBody: Decodable { var title: String }
+    private struct SessionPatchBody: Decodable { var title: String?; var archived: Bool? }
+    private struct ConversationOpenBody: Decodable { var profile: String; var sessionId: String }
+    private struct ConversationCreateBody: Decodable { var profile: String }
 }
