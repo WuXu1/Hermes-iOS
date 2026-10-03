@@ -8,12 +8,17 @@ __DOMAIN__ {
 	@blocked {
 		path /internal/* /v1/connector/* /v1/hosts/enrollment-codes /v1/hosts/ws /v1/hosts/redeem /v1/push/* /v1/talk/* /v1/pairing/redeem /docs /redoc /openapi.json
 	}
-	respond @blocked 404
-
-	@app path /v1/*
-	reverse_proxy @app 127.0.0.1:8000 {
-		header_up X-Forwarded-For {remote_host}
+	handle @blocked {
+		respond 404
 	}
 
-	respond 404
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:8000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	handle {
+		respond 404
+	}
 }

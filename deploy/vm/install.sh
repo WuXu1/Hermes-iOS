@@ -14,15 +14,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ -n "$DOMAIN" && -n "$EMAIL" && -n "$REPO" ]] || { echo "usage: install.sh --domain <name> --email <email> --repo <checkout>" >&2; exit 2; }
+[[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "--domain must contain only letters, digits, dots and hyphens" >&2; exit 2; }
+[[ $EMAIL =~ ^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+$ ]] || { echo "--email must look like name@host (no other characters)" >&2; exit 2; }
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 id hermes >/dev/null || { echo "the hermes user is missing" >&2; exit 1; }
+for tool in rsync python3 curl; do
+  command -v "$tool" >/dev/null || { echo "missing required tool: $tool (apt-get install $tool)" >&2; exit 1; }
+done
+[[ -d "$REPO/relay" && -d "$REPO/connector" && -d "$REPO/deploy/vm" ]] || { echo "--repo is not a Hermes-iOS checkout" >&2; exit 1; }
 
 HERMES_UID=$(id -u hermes)
 UV=/data/.hermes/bin/uv
-[[ -x "$UV" ]] || UV=$(command -v uv)
+[[ -x "$UV" ]] || UV=$(command -v uv || true)
+[[ -n "$UV" && -x "$UV" ]] || { echo "uv not found (expected /data/.hermes/bin/uv or on PATH)" >&2; exit 1; }
 
 echo "== packages"
+install -d -o root -g root -m 0755 /etc/hermes-mobile
 if ! command -v caddy >/dev/null; then
+  touch /etc/hermes-mobile/.installed-caddy
   apt-get update -q
   apt-get install -y -q debian-keyring debian-archive-keyring apt-transport-https curl gnupg
   curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
@@ -34,6 +43,7 @@ fi
 echo "== users and folders"
 id hermes-relay >/dev/null 2>&1 || useradd --system --home /var/lib/hermes-mobile-relay --shell /usr/sbin/nologin hermes-relay
 install -d -o hermes-relay -g hermes-relay -m 0750 /var/lib/hermes-mobile-relay
+chown -R hermes-relay:hermes-relay /var/lib/hermes-mobile-relay
 install -d -o root -g root -m 0755 /opt/hermes-mobile /etc/hermes-mobile
 install -d -o hermes -g hermes -m 0700 /data/.hermes-mobile
 
@@ -41,18 +51,19 @@ echo "== code"
 rsync -a --delete --exclude .venv --exclude tests "$REPO/relay/" /opt/hermes-mobile/relay/
 rsync -a --delete --exclude .venv --exclude tests "$REPO/connector/" /opt/hermes-mobile/connector/
 UV_PYTHON_INSTALL_DIR=/opt/hermes-mobile/python "$UV" venv --python 3.12 /opt/hermes-mobile/relay-venv --allow-existing
-"$UV" pip install --python /opt/hermes-mobile/relay-venv/bin/python /opt/hermes-mobile/relay
+"$UV" pip install --reinstall-package hermes-mobile-relay --python /opt/hermes-mobile/relay-venv/bin/python /opt/hermes-mobile/relay
 UV_PYTHON_INSTALL_DIR=/opt/hermes-mobile/python "$UV" venv --python 3.12 /opt/hermes-mobile/connector-venv --allow-existing
-"$UV" pip install --python /opt/hermes-mobile/connector-venv/bin/python /opt/hermes-mobile/connector
+"$UV" pip install --reinstall-package hermes-mobile-connector --python /opt/hermes-mobile/connector-venv/bin/python /opt/hermes-mobile/connector
 chmod -R a+rX /opt/hermes-mobile
 
 echo "== secrets (generated once, never printed)"
 secret() { python3 -c 'import secrets; print(secrets.token_urlsafe(32))'; }
-if [[ ! -f /etc/hermes-mobile/dashboard.env ]]; then
-  umask 077
-  DASH=$(secret); SETUP=$(secret); INTERNAL=$(secret)
-  printf 'HERMES_DASHBOARD_SESSION_TOKEN=%s\n' "$DASH" > /etc/hermes-mobile/dashboard.env
-  cat > /etc/hermes-mobile/relay.env <<ENVEOF
+if [[ ! -f /etc/hermes-mobile/dashboard.env && ! -f /etc/hermes-mobile/relay.env && ! -f /etc/hermes-mobile/connector.env ]]; then
+  (
+    umask 077
+    DASH=$(secret); SETUP=$(secret); INTERNAL=$(secret)
+    printf 'HERMES_DASHBOARD_SESSION_TOKEN=%s\n' "$DASH" > /etc/hermes-mobile/dashboard.env
+    cat > /etc/hermes-mobile/relay.env <<ENVEOF
 RELAY_ENVIRONMENT=production
 HERMES_ADAPTER=connector
 PUBLIC_BASE_URL=https://$DOMAIN/v1
@@ -62,12 +73,16 @@ CONNECTOR_SETUP_SECRET=$SETUP
 CONNECTOR_SYNC_WAIT_SECONDS=25
 CONNECTOR_JOB_LEASE_SECONDS=960
 ENVEOF
-  cat > /etc/hermes-mobile/connector.env <<ENVEOF
+    cat > /etc/hermes-mobile/connector.env <<ENVEOF
 HERMES_DASHBOARD_SESSION_TOKEN=$DASH
 CONNECTOR_SETUP_SECRET=$SETUP
 HERMES_CHAT_TIMEOUT_SECONDS=900
 ENVEOF
+  )
 fi
+for f in dashboard relay connector; do
+  [[ -f /etc/hermes-mobile/$f.env ]] || { echo "/etc/hermes-mobile/$f.env is missing but the others exist; remove all three to regenerate" >&2; exit 1; }
+done
 chown root:root /etc/hermes-mobile/*.env
 chmod 0600 /etc/hermes-mobile/*.env
 sed -i "s#^PUBLIC_BASE_URL=.*#PUBLIC_BASE_URL=https://$DOMAIN/v1#" /etc/hermes-mobile/relay.env
@@ -76,7 +91,15 @@ echo "== services"
 install -m 0644 "$REPO/deploy/vm/hermes-dashboard.service" /etc/systemd/system/
 install -m 0644 "$REPO/deploy/vm/hermes-mobile-relay.service" /etc/systemd/system/
 sed "s#/run/user/1001#/run/user/$HERMES_UID#g" "$REPO/deploy/vm/hermes-mobile-connector.service" > /etc/systemd/system/hermes-mobile-connector.service
+chmod 0644 /etc/systemd/system/hermes-mobile-connector.service
+# Keep a pre-existing Caddyfile once, so uninstall.sh can restore it.
+if [[ -f /etc/caddy/Caddyfile && ! -f /etc/caddy/Caddyfile.bak-before-hermes-mobile && ! -f /etc/hermes-mobile/.caddyfile-generated ]]; then
+  cp -p /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-before-hermes-mobile
+fi
 sed -e "s#__DOMAIN__#$DOMAIN#g" -e "s#__EMAIL__#$EMAIL#g" "$REPO/deploy/vm/Caddyfile.template" > /etc/caddy/Caddyfile
+chmod 0644 /etc/caddy/Caddyfile
+touch /etc/hermes-mobile/.caddyfile-generated
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile || { echo "generated Caddyfile is invalid; not reloading Caddy" >&2; exit 1; }
 ln -sf /opt/hermes-mobile/connector-venv/bin/hermes-mobile /usr/local/bin/hermes-mobile
 systemctl daemon-reload
 systemctl enable --now hermes-dashboard hermes-mobile-relay
@@ -84,11 +107,15 @@ systemctl reload-or-restart caddy
 
 echo "== connector registration (first run only)"
 if [[ ! -f /data/.hermes-mobile/state.json ]]; then
-  # The env file holds only KEY=value lines with URL-safe values, so word splitting is safe here.
-  # shellcheck disable=SC2046
-  sudo -u hermes env $(grep -v '^#' /etc/hermes-mobile/connector.env | xargs) \
-    HERMES_HOME=/data/.hermes HERMES_MOBILE_CONNECTOR_HOME=/data/.hermes-mobile \
-    HERMES_COMMAND=/home/hermes/.local/bin/hermes \
+  echo "waiting for the relay"
+  for _ in $(seq 30); do
+    curl -fs http://127.0.0.1:8000/v1/health >/dev/null 2>&1 && break
+    sleep 1
+  done
+  curl -fs http://127.0.0.1:8000/v1/health >/dev/null 2>&1 || { echo "the relay did not answer on 127.0.0.1:8000 within 30s; see journalctl -u hermes-mobile-relay" >&2; exit 1; }
+  systemd-run --wait --pipe --collect -p User=hermes -p EnvironmentFile=/etc/hermes-mobile/connector.env \
+    -E HERMES_HOME=/data/.hermes -E HERMES_MOBILE_CONNECTOR_HOME=/data/.hermes-mobile \
+    -E HERMES_COMMAND=/home/hermes/.local/bin/hermes \
     /opt/hermes-mobile/connector-venv/bin/hermes-mobile setup --relay-url http://127.0.0.1:8000/v1 --skip-mcp
 fi
 systemctl enable --now hermes-mobile-connector

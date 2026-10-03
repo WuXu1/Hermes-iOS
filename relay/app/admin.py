@@ -10,7 +10,10 @@ import qrcode
 from .config import Settings
 from .database import Database
 from .pairing import SetupCodePayload, build_setup_code
-from .services import create_pairing_invite
+from sqlalchemy import select
+
+from .models import AuthSession, Device
+from .services import create_pairing_invite, revoke_auth_session
 
 
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
@@ -85,10 +88,50 @@ def run_create_setup_code() -> int:
     return 0
 
 
+def run_revoke_devices(*, device_id: str | None, revoke_all: bool, database: Database | None = None) -> int:
+    """List paired devices; with a device id or --all, revoke their active auth sessions."""
+    if database is None:
+        settings = Settings.from_env()
+        database = Database(settings.database_url)
+        database.create_all()
+
+    with database.session() as db:
+        devices = list(db.scalars(select(Device).order_by(Device.created_at)))
+        if device_id is not None and all(device.id != device_id for device in devices):
+            print(f"No device with id {device_id}.", file=sys.stderr)
+            return 1
+
+        if device_id is None and not revoke_all:
+            if not devices:
+                print("No paired devices.")
+            for device in devices:
+                last_seen = device.last_seen_at.isoformat() if device.last_seen_at else "never"
+                print(f"{device.id}  {device.device_name or '(unnamed)'}  last seen {last_seen}")
+            print("Revoke one with --device <id>, or everything with --all.")
+            return 0
+
+        targets = [device for device in devices if revoke_all or device.id == device_id]
+        revoked = 0
+        for device in targets:
+            sessions = db.scalars(
+                select(AuthSession).where(AuthSession.device_id == device.id, AuthSession.revoked_at.is_(None))
+            )
+            for auth_session in list(sessions):
+                revoke_auth_session(db, auth_session=auth_session)
+                revoked += 1
+        print(f"Revoked {revoked} session(s) on {len(targets)} device(s). Those phones must pair again.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-mobile-relay-admin")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("create-setup-code", help="Create a single-use Hermes Mobile pairing setup code.")
+    revoke = subparsers.add_parser(
+        "revoke-devices", help="List paired devices, or revoke their sessions with --device <id> or --all."
+    )
+    revoke.add_argument("--device", help="Device id to revoke (see the listing).")
+    revoke.add_argument("--all", action="store_true", dest="revoke_all", help="Revoke every device.")
     return parser
 
 
@@ -98,6 +141,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "create-setup-code":
         return run_create_setup_code()
+
+    if args.command == "revoke-devices":
+        if args.device and args.revoke_all:
+            raise SystemExit("Use either --device or --all, not both.")
+        return run_revoke_devices(device_id=args.device, revoke_all=args.revoke_all)
 
     raise SystemExit(f"Unsupported command: {args.command}")
 

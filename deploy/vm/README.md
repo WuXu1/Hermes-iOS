@@ -63,14 +63,14 @@ In the app choose *Enter Code Manually*, set the relay URL to `https://<dns-name
 
 ## Revoking a device
 
-`hermes-mobile-relay-admin --help` (run it as `/opt/hermes-mobile/relay-venv/bin/hermes-mobile-relay-admin`, with the variables from `/etc/hermes-mobile/relay.env` exported) offers only `create-setup-code`, which makes a single-use pairing code for the relay's own pairing flow. There is no revoke command. To revoke a phone, revoke its sessions in the relay database:
+The relay admin CLI can list paired devices and revoke their sessions. Run it as the relay user with the relay's own environment:
 
 ```bash
-sudo sqlite3 /var/lib/hermes-mobile-relay/relay.db \
-  "SELECT d.id, d.device_name, d.last_seen_at FROM devices d;"
-sudo sqlite3 /var/lib/hermes-mobile-relay/relay.db \
-  "UPDATE auth_sessions SET revoked_at = datetime('now') WHERE device_id = '<device-id>';"
+sudo systemd-run --wait --pipe -p User=hermes-relay -p EnvironmentFile=/etc/hermes-mobile/relay.env \
+  /opt/hermes-mobile/relay-venv/bin/hermes-mobile-relay-admin revoke-devices
 ```
+
+With no options it lists devices (id, name, last seen). Add `--device <id>` to revoke one device, or `--all` to revoke every device.
 
 The phone must then pair again.
 
