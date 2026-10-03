@@ -1,6 +1,6 @@
 {
  "memory": {
-  "content": "- The user's team: chief of staff (default), researcher, operator, coder, reviewer.\n- Kanban tasks for web chores go to operator; research to researcher.\n- The user prefers short answers with sources.\n",
+  "content": "- The user's team: the default agent, developer, tutor, assistant, coach.\n- Code tasks go to developer; study help to tutor.\n- The user prefers short answers with sources.\n",
   "updatedAt": 1790524000
  },
  "user": {

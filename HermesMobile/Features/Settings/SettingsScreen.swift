@@ -4,11 +4,11 @@ struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(AppSessionStore.self) private var sessionStore
-    @Environment(HermesHostStore.self) private var hostStore
     @Environment(PairingStore.self) private var pairingStore
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
+    @State private var confirmingUnpair = false
 
     var body: some View {
         ZStack {
@@ -28,6 +28,9 @@ struct SettingsScreen: View {
                     locationSection
                     privacySection
                     aboutSection
+                    if pairingStore.isPaired {
+                        unpairSection
+                    }
                 }
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.sm)
@@ -45,8 +48,22 @@ struct SettingsScreen: View {
                 .accessibilityLabel("Close")
             }
         }
+        .confirmationDialog(
+            "Unpair this iPhone?",
+            isPresented: $confirmingUnpair,
+            titleVisibility: .visible
+        ) {
+            Button("Unpair this iPhone", role: .destructive) {
+                Task {
+                    await pairingStore.disconnect()
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll need a new pairing code from your server to reconnect.")
+        }
         .task {
-            await hostStore.refresh()
             await permissionsStore.reloadCapabilities()
         }
     }
@@ -299,6 +316,26 @@ struct SettingsScreen: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Unpair
+
+    private var unpairSection: some View {
+        SettingsSectionView(title: "Pairing") {
+            Button(role: .destructive) {
+                confirmingUnpair = true
+            } label: {
+                HStack(spacing: Design.Spacing.sm) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Text("Unpair this iPhone")
+                    Spacer()
+                }
+                .font(Design.Typography.callout)
+                .frame(minHeight: Design.Size.minTapTarget)
+            }
+            .disabled(pairingStore.isWorking)
+            .accessibilityIdentifier("settings.unpair")
         }
     }
 

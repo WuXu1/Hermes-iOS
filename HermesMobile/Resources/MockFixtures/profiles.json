@@ -5,36 +5,36 @@
    "is_default": true,
    "model": "deepseek-flash",
    "provider": "deepseek",
-   "description": ""
+   "description": "Your main assistant: delegates to the other agents and handles anything general."
   },
   {
-   "name": "coder",
+   "name": "developer",
    "is_default": false,
    "display_name": "Dev",
    "model": "deepseek-flash",
    "provider": "deepseek",
-   "description": "Writes, runs and fixes code, scripts and automations, verifying they work before handing off for review."
+   "description": "Writes and reviews code"
   },
   {
-   "name": "operator",
+   "name": "tutor",
    "is_default": false,
    "model": "deepseek-flash",
    "provider": "deepseek",
-   "description": "Hands-on web tasks in a real browser: navigating sites, looking things up, filling forms and account chores, stopping for approval before anything irreversible."
+   "description": "Study help and revision"
   },
   {
-   "name": "researcher",
+   "name": "assistant",
    "is_default": false,
    "model": "deepseek-flash",
    "provider": "deepseek",
-   "description": "In-depth web research: finds, compares and verifies information from primary sources and delivers a cited markdown report."
+   "description": "Planning, admin and research"
   },
   {
-   "name": "reviewer",
+   "name": "coach",
    "is_default": false,
    "model": "deepseek-flash",
    "provider": "deepseek",
-   "description": "Reviews and verifies other profiles' work (code, research, web actions) and approves it or requests specific changes."
+   "description": "Training, food and recovery"
   }
  ]
 }

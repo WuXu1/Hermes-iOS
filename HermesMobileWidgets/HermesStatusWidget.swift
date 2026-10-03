@@ -1,7 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-/// Glanceable Hermes status — connection state, last message.
+/// Glanceable Hermes status: connection, board counts and the next automation.
 struct HermesStatusWidget: Widget {
     let kind = "HermesStatus"
 
@@ -13,7 +13,7 @@ struct HermesStatusWidget: Widget {
                 }
         }
         .configurationDisplayName("Hermes Status")
-        .description("Connection status and recent messages.")
+        .description("Connection, running and waiting tasks, and your next automation.")
         .supportedFamilies([
             .systemSmall,
             .accessoryCircular,
@@ -58,24 +58,54 @@ private struct HermesStatusView: View {
 
             Spacer()
 
-            if let preview = entry.data.lastMessagePreview {
-                Text(preview)
-                    .font(.caption)
+            boardCounts
+                .font(.caption.weight(.medium))
+
+            if let automation = nextAutomationText {
+                Text(automation)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                    .lineLimit(2)
+            } else if let preview = entry.data.lastMessagePreview {
+                Text(preview)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             } else {
                 Text(entry.data.hostOnline ? "Ready" : "Offline")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
 
-            if let messageAt = entry.data.lastMessageAt {
-                Text(messageAt, style: .relative)
+            if let nextAt = entry.data.nextAutomationAt, nextAutomationText != nil {
+                Text(nextAt, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
         }
         .widgetURL(URL(string: "hermes://chat"))
+    }
+
+    // MARK: - Shared pieces
+
+    /// "2 running · 1 needs you", with the second part highlighted.
+    private var boardCounts: some View {
+        HStack(spacing: 4) {
+            Text("\(entry.data.runningCount) running")
+                .foregroundStyle(.primary)
+            Text("·").foregroundStyle(.tertiary)
+            Text("\(entry.data.needsYouCount) waiting")
+                .foregroundStyle(entry.data.needsYouCount > 0 ? Color.orange : Color.secondary)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+    }
+
+    /// "Morning briefing · Commander"; nil when no automation is scheduled.
+    private var nextAutomationText: String? {
+        guard let name = entry.data.nextAutomationName else { return nil }
+        guard let agent = entry.data.nextAutomationAgent, !agent.isEmpty else { return "Next: \(name)" }
+        return "Next: \(name) · \(agent)"
     }
 
     // MARK: - Accessory Circular (Lock Screen)
@@ -101,14 +131,17 @@ private struct HermesStatusView: View {
                 Spacer()
             }
 
-            if let preview = entry.data.lastMessagePreview {
-                Text(preview)
-                    .font(.caption)
+            boardCounts
+                .font(.caption)
+
+            if let automation = nextAutomationText {
+                Text(automation)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(1)
             } else {
                 Text(entry.data.hostOnline ? "Ready" : "Offline")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }

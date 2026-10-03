@@ -66,7 +66,20 @@ final class ScreenshotTourUITests: XCTestCase {
         }
 
         app.tabBars.buttons["Chat"].tap()
-        if tapIfExists(app.buttons["chat.history"]) { capture("09-history"); dismissSheet() }
+        // Agent picker: open the menu, then switch to Tutor and look at its chats.
+        if tapIfExists(app.buttons["chat.agent"]) {
+            capture("09a-agent-picker")
+            tapIfExists(app.buttons["Tutor"])
+        }
+        if tapIfExists(app.buttons["chat.history"]) { capture("09b-history-tutor"); dismissSheet() }
+        // Library follows its own agent switch.
+        app.tabBars.buttons["Library"].tap()
+        sleep(1)
+        if tapIfExists(app.buttons["library.agent"]), tapIfExists(app.buttons["Coach"]) {
+            sleep(1)
+            capture("09c-library-coach")
+        }
+        app.tabBars.buttons["Chat"].tap()
         if tapIfExists(app.buttons["chat.agent"]), tapIfExists(app.buttons["Settings"]) { capture("10-settings"); dismissSheet() }
         // Chat steps change the account's shared current chat; mock mode only.
         if liveRelayURL == nil {
@@ -81,8 +94,8 @@ final class ScreenshotTourUITests: XCTestCase {
             }
             if tapIfExists(app.buttons["chat.new"]) {
                 if tapIfExists(app.buttons["chat.assign"]) {
-                    if tapIfExists(app.buttons["Researcher"]) {
-                        app.typeText("Compare the three best e-bikes under £2,000")
+                    if tapIfExists(app.buttons["Assistant"]) {
+                        app.typeText("Plan next week's revision timetable")
                         capture("12-chat-assign")
                     }
                 }

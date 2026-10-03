@@ -19,7 +19,9 @@ struct LibraryScreen: View {
                         Text(agents.label(for: agent.name)).tag(agent.name)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
+                .tint(Design.Colors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("library.agent")
 
                 Picker("Section", selection: $section) {

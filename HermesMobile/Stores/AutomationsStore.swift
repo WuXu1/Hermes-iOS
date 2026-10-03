@@ -9,6 +9,7 @@ final class AutomationsStore {
     private(set) var hasLoaded = false
     private(set) var isOffline = false
     private(set) var errorMessage: String?
+    var onChanged: (@MainActor () -> Void)?
 
     private let api: HermesWorkspaceAPI
 
@@ -30,6 +31,7 @@ final class AutomationsStore {
             errorMessage = error.localizedDescription
         }
         hasLoaded = true
+        onChanged?()
     }
 
     func reset() {

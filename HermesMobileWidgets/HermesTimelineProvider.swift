@@ -18,6 +18,11 @@ struct HermesWidgetEntry: TimelineEntry {
             activeCalories: 185,
             sleepHours: 7.4,
             heartRate: 68,
+            runningCount: 2,
+            needsYouCount: 1,
+            nextAutomationName: "Morning briefing",
+            nextAutomationAgent: "Commander",
+            nextAutomationAt: .now.addingTimeInterval(3_600),
             updatedAt: .now
         )
     )

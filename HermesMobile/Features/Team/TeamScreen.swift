@@ -85,7 +85,7 @@ struct TeamScreen: View {
                 EmptyStateView(
                     systemImage: "person.3.sequence",
                     title: "Your team is ready",
-                    message: "Give a task to the researcher, operator, coder or reviewer. They work in the background and report back here.",
+                    message: "Give a task to one of your agents. They work in the background and report back here.",
                     actionTitle: "Give the team a task"
                 ) {
                     router.presentSheet(.newTask(prefill: nil))

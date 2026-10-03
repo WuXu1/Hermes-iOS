@@ -45,12 +45,13 @@ struct RoleStripView: View {
                             .offset(x: 4, y: -4)
                     }
                 }
-            Text(profile.isDefault ? "Chief" : agents.label(for: profile.name))
+            Text(agents.label(for: profile.name))
                 .font(.caption.weight(isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? Design.Colors.textPrimary : Design.Colors.textSecondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(width: 68)
+        .frame(width: 72)
         .opacity(isDimmed ? 0.45 : 1)
         .contentShape(Rectangle())
         .onTapGesture {

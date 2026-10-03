@@ -33,7 +33,7 @@ final class TeamStore {
     }
 
     /// Display order for known roles; others follow alphabetically.
-    private static let roleOrder = [RoleStyle.defaultProfileName, "researcher", "operator", "coder", "reviewer"]
+    private static let roleOrder = RoleStyle.preferredOrder
     private static let doneLimit = 20
     private static let pollInterval: Duration = .seconds(10)
 
@@ -42,6 +42,7 @@ final class TeamStore {
     private(set) var loadState: LoadState = .idle
     private(set) var isOffline = false
     var selectedRole: String?
+    var onChanged: (@MainActor () -> Void)?
 
     private let api: HermesWorkspaceAPI
     private var pollingTask: Task<Void, Never>?
@@ -123,6 +124,7 @@ final class TeamStore {
         } catch {
             loadState = board.allTasks.isEmpty ? .failed(error.localizedDescription) : .loaded
         }
+        onChanged?()
     }
 
     func startLivePolling() {

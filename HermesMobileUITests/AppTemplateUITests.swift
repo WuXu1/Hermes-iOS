@@ -95,6 +95,31 @@ final class HermesMobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testUnpairFromSettingsReturnsToOnboarding() throws {
+        let context = UITestLaunchContext(pairingMode: "mock")
+        let app = makeApp(context: context)
+        app.launch()
+        completePairing(in: app, setupCode: context.setupCode)
+
+        app.buttons["chat.agent"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 3))
+        app.buttons["Settings"].tap()
+
+        let unpair = app.buttons["settings.unpair"]
+        for _ in 0 ..< 6 where !unpair.isHittable { app.swipeUp() }
+        XCTAssertTrue(unpair.waitForExistence(timeout: 5))
+        unpair.tap()
+
+        let confirm = app.sheets.buttons["Unpair this iPhone"].firstMatch.exists
+            ? app.sheets.buttons["Unpair this iPhone"].firstMatch
+            : app.buttons.matching(NSPredicate(format: "label == 'Unpair this iPhone'")).element(boundBy: 1)
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+
+        XCTAssertTrue(app.buttons["Enter Code Manually"].waitForExistence(timeout: 8))
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         let context = UITestLaunchContext()
         measure(metrics: [XCTApplicationLaunchMetric()]) {

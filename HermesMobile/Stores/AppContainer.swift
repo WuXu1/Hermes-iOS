@@ -265,6 +265,9 @@ final class AppContainer {
             }
             container?.updateWidgetData()
         }
+        container.teamStore.onChanged = { [weak container] in container?.updateWidgetData() }
+        container.automationsStore.onChanged = { [weak container] in container?.updateWidgetData() }
+        container.agentStore.onProfilesChanged = { [weak container] in container?.updateWidgetData() }
         container.hostStore.onHostChanged = { [weak container] in
             guard let container else { return }
             let isOnline = container.hostStore.isHostOnline
@@ -595,15 +598,29 @@ final class AppContainer {
     /// so Home Screen widgets can display it.
     func updateWidgetData() {
         let lastMessage = chatStore.conversation?.messages.last
-        var data = SharedWidgetDataStore.read()
+        let previous = SharedWidgetDataStore.read()
+        var data = previous
         data.hostName = hostStore.currentHost?.resolvedDisplayName
         data.hostOnline = hostStore.isHostOnline
         data.updatedAt = .now
+        data.runningCount = teamStore.workingCount
+        data.needsYouCount = teamStore.needsYouCount
+        // The widget extension has no AgentStore, so the agent's name is resolved here.
+        let nextJob = automationsStore.jobs
+            .filter { !$0.isPaused && $0.nextRunAt != nil }
+            .min { ($0.nextRunAt ?? .distantFuture) < ($1.nextRunAt ?? .distantFuture) }
+        data.nextAutomationName = nextJob?.displayName
+        data.nextAutomationAgent = nextJob.map { agentStore.label(for: $0.profile ?? RoleStyle.defaultProfileName) }
+        data.nextAutomationAt = nextJob?.nextRunAt
         if let msg = lastMessage {
             data.lastMessagePreview = String(msg.content.prefix(120))
             data.lastMessageSender = msg.sender.rawValue
             data.lastMessageAt = msg.timestamp
         }
+        // Polling refreshes call this every few seconds; only reload widgets on a real change.
+        var comparable = data
+        comparable.updatedAt = previous.updatedAt
+        guard comparable != previous else { return }
         SharedWidgetDataStore.write(data)
     }
 

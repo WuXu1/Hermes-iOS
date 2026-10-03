@@ -110,7 +110,7 @@ struct NewAutomationSheet: View {
                 }
             }
             .cardSurface()
-            Text("Blueprints run as Commander")
+            Text("Blueprints run as \(agents.label(for: RoleStyle.defaultProfileName))")
                 .font(.caption)
                 .foregroundStyle(Design.Colors.textTertiary)
             if let human = blueprint.scheduleHuman {

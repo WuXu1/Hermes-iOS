@@ -6,9 +6,9 @@
  "active_sessions": 1,
  "profiles": [
   "default",
-  "coder",
-  "operator",
-  "researcher",
-  "reviewer"
+  "developer",
+  "tutor",
+  "assistant",
+  "coach"
  ]
 }

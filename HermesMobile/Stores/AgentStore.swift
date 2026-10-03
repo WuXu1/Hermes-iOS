@@ -9,6 +9,7 @@ final class AgentStore {
     private(set) var profiles: [HermesProfile] = []
     private(set) var selected: String
     var onSelectionChanged: (@MainActor (String) async -> Void)?
+    var onProfilesChanged: (@MainActor () -> Void)?
 
     private var selectionTask: Task<Void, Never>?
     private let api: HermesWorkspaceAPI
@@ -50,6 +51,7 @@ final class AgentStore {
     func refresh() async {
         guard let loaded = try? await api.profiles(), !loaded.isEmpty else { return }
         profiles = loaded
+        onProfilesChanged?()
         if !loaded.contains(where: { $0.name == selected }) {
             select(RoleStyle.defaultProfileName)
         }
