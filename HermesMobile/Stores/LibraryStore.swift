@@ -17,7 +17,15 @@ final class LibraryStore {
     private(set) var errorMessage: String?
     var skillQuery = ""
     /// The agent whose memory and skills are shown.
-    var profile: String = RoleStyle.defaultProfileName
+    var profile: String = RoleStyle.defaultProfileName {
+        didSet {
+            guard profile != oldValue else { return }
+            memory = .empty
+            skills = []
+            hasLoaded = false
+            errorMessage = nil
+        }
+    }
 
     private let api: HermesWorkspaceAPI
 
@@ -40,22 +48,28 @@ final class LibraryStore {
     var enabledSkillCount: Int { skills.filter(\.enabled).count }
 
     func refresh() async {
+        let requested = profile
         do {
-            async let memory = api.memory(profile: profile)
-            async let skills = api.skills(profile: profile)
-            self.memory = try await memory
-            self.skills = try await skills
+            async let memory = api.memory(profile: requested)
+            async let skills = api.skills(profile: requested)
+            let (loadedMemory, loadedSkills) = try await (memory, skills)
+            guard profile == requested else { return }
+            self.memory = loadedMemory
+            self.skills = loadedSkills
             isOffline = false
             errorMessage = nil
         } catch WorkspaceError.hostOffline {
+            guard profile == requested else { return }
             isOffline = true
         } catch {
+            guard profile == requested else { return }
             errorMessage = error.localizedDescription
         }
         hasLoaded = true
     }
 
     func reset() {
+        profile = RoleStyle.defaultProfileName
         memory = .empty
         skills = []
         hasLoaded = false
@@ -65,7 +79,9 @@ final class LibraryStore {
     }
 
     func save(_ kind: HermesMemoryKind, content: String) async throws {
-        memory[kind] = try await api.saveMemory(kind, content: content, profile: profile)
+        let target = profile
+        let document = try await api.saveMemory(kind, content: content, profile: target)
+        if profile == target { memory[kind] = document }
     }
 
     /// Optimistic toggle; reverts and reports if the host refuses.

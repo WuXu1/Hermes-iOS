@@ -57,7 +57,7 @@ struct HermesOverviewSection: View {
                                 }
                             }
                             Spacer()
-                            Text(row.cost.map(Self.money) ?? "-")
+                            Text(row.cost.map(Self.money) ?? "Unavailable")
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(Design.Colors.textSecondary)
                         }
@@ -81,7 +81,7 @@ struct HermesOverviewSection: View {
                     .foregroundStyle(Design.Colors.textTertiary)
             }
         }
-        .task { await load() }
+        .task(id: agents.ordered.map(\.name)) { await load() }
     }
 
     private var subtitle: String {
@@ -111,22 +111,11 @@ struct HermesOverviewSection: View {
             return
         }
         let names = agents.ordered.map(\.name)
-        let tasks = names.map { name in Task { await Self.usage(for: name, api: api) } }
         var loaded: [AgentUsage] = []
-        for task in tasks { loaded.append(await task.value) }
-        rows = loaded
-    }
-
-    private static let providerNames = [
-        "deepseek": "DeepSeek", "openai": "OpenAI", "openrouter": "OpenRouter",
-        "anthropic": "Anthropic", "nous": "Nous", "xai": "xAI", "gemini": "Gemini",
-    ]
-
-    static func compact(_ value: Int) -> String {
-        switch value {
-        case 1_000_000...: String(format: "%.1fM", Double(value) / 1_000_000).replacingOccurrences(of: ".0M", with: "M")
-        case 1_000...: String(format: "%.0fK", Double(value) / 1_000)
-        default: "\(value)"
+        for name in names {
+            loaded.append(await Self.usage(for: name, api: api))
+            if Task.isCancelled { return }
         }
+        rows = loaded
     }
 }

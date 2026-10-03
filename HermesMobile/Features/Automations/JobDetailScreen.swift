@@ -5,7 +5,6 @@ struct JobDetailScreen: View {
 
     @Environment(AutomationsStore.self) private var store
     @Environment(ToastCenter.self) private var toasts
-    @Environment(\.dismiss) private var dismiss
 
     @State private var runs: [CronRun]?
     @State private var runsError: String?
@@ -38,7 +37,7 @@ struct JobDetailScreen: View {
                     .padding(.bottom, 100)
                 }
             } else {
-                EmptyStateView(systemImage: "clock", title: "Automation not found", message: "It may have been deleted.")
+                EmptyStateView(systemImage: "clock", title: "Automation not found", message: "It may have been removed on the server.")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

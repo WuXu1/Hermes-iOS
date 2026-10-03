@@ -25,6 +25,9 @@ final class MockWorkspaceTransport: WorkspaceTransport {
     /// Test hook: holds `GET hermes/api/sessions` until the gate is opened.
     var sessionsGate: SessionsGate?
 
+    /// Test hook: holds `GET hermes/memory` for one profile until the gate is opened.
+    var memoryGate: (profile: String, gate: SessionsGate)?
+
     struct OpenedSession: Equatable {
         var profile: String
         var sessionId: String
@@ -55,6 +58,9 @@ final class MockWorkspaceTransport: WorkspaceTransport {
         lastQuery = query
         if method == .get, path == "hermes/api/sessions", let gate = sessionsGate {
             await gate.wait()
+        }
+        if method == .get, path == "hermes/memory", let held = memoryGate, query["profile"] == held.profile {
+            await held.gate.wait()
         }
         guard mode == .online else { throw WorkspaceError.hostOffline }
 

@@ -14,7 +14,7 @@ struct LibraryScreen: View {
         @Bindable var store = store
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Design.Spacing.lg) {
-                Picker("Agent", selection: $store.profile) {
+                Picker("Agent", selection: Binding(get: { store.profile }, set: selectAgent)) {
                     ForEach(agents.ordered) { agent in
                         Text(RoleStyle.forProfile(agent.name).displayName).tag(agent.name)
                     }
@@ -61,14 +61,17 @@ struct LibraryScreen: View {
         .onChange(of: store.skillQuery) { _, query in
             if !query.isEmpty { section = .skills }
         }
-        .onChange(of: store.profile) { _, _ in
-            Task { await store.refresh() }
-        }
         .refreshable { await store.refresh() }
         .task {
             if !store.hasLoaded { store.profile = agents.selected }
             await store.refresh()
         }
+    }
+
+    private func selectAgent(_ name: String) {
+        guard name != store.profile else { return }
+        store.profile = name
+        Task { await store.refresh() }
     }
 
     private var memory: some View {

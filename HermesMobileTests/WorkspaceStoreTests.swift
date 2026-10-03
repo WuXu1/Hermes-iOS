@@ -276,4 +276,39 @@ struct LibraryAndAutomationsStoreTests {
         #expect(store.skills[0].enabled)
         #expect(transport.requests.count == requestsBefore)
     }
+
+    @Test func slowResultForPreviousAgentIsDropped() async {
+        let transport = MockWorkspaceTransport()
+        let gate = SessionsGate()
+        transport.memoryGate = (profile: "coach", gate: gate)
+        let store = LibraryStore(api: HermesWorkspaceAPI(transport: transport))
+        store.profile = "coach"
+        let slow = Task { await store.refresh() }
+        while !(await gate.isWaiting) { await Task.yield() }
+
+        store.profile = "tutor"
+        await store.refresh()
+        let marker = HermesSkill(name: "tutor-only", description: nil, category: nil, enabled: true, usage: nil, provenance: nil, locked: true)
+        store.setSkillsForTesting([marker])
+        await gate.open()
+        await slow.value
+
+        #expect(store.profile == "tutor")
+        #expect(store.hasLoaded)
+        #expect(store.skills == [marker])
+    }
+
+    @Test func switchingAgentClearsOldDataAndSaveTargetsNewAgent() async throws {
+        let transport = MockWorkspaceTransport()
+        let store = LibraryStore(api: HermesWorkspaceAPI(transport: transport))
+        await store.refresh()
+        #expect(!store.skills.isEmpty)
+
+        store.profile = "coach"
+        #expect(store.skills.isEmpty)
+        #expect(!store.hasLoaded)
+
+        try await store.save(.user, content: "- Likes runs.\n")
+        #expect(transport.lastQuery == ["profile": "coach"])
+    }
 }
