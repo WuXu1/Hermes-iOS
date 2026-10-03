@@ -53,7 +53,7 @@ final class HermesMobileUITests: XCTestCase {
         completePairing(in: app, setupCode: context.setupCode)
 
         XCTAssertTrue(composerInput(in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Start voice mode"].exists)
+        XCTAssertTrue(app.buttons["Record voice note"].exists)
         XCTAssertTrue(app.buttons["chat.agent"].exists)
     }
 
