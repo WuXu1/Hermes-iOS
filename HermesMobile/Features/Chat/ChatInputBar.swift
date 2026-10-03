@@ -19,12 +19,14 @@ struct ChatInputBar: View {
 
     @State private var recorder = VoiceNoteRecorder()
     @State private var isTranscribing = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var assignedStyle: RoleStyle? {
         assignee.wrappedValue.map { RoleStyle.forProfile($0) }
     }
 
     private var canSend: Bool {
+        if recorder.isRecording || isTranscribing { return false }
         if assignee.wrappedValue != nil {
             return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -142,7 +144,7 @@ struct ChatInputBar: View {
                     Spacer()
 
                     // Voice note button
-                    if !isStreaming {
+                    if !isStreaming || recorder.isRecording {
                         Button {
                             toggleVoiceNote()
                         } label: {
@@ -190,6 +192,13 @@ struct ChatInputBar: View {
         .animation(Design.Motion.quickResponse, value: isSlashMode)
         .animation(Design.Motion.quickResponse, value: isStreaming)
         .animation(Design.Motion.quickResponse, value: canSend)
+        .onAppear {
+            recorder.onFinished = { audio in transcribeIntoComposer(audio) }
+        }
+        .onDisappear { recorder.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { recorder.cancel() }
+        }
     }
 
     // MARK: - Attachment Preview Strip
@@ -346,25 +355,28 @@ struct ChatInputBar: View {
                 toasts.showError(error.localizedDescription)
                 return
             }
-            isTranscribing = true
-            Task {
-                defer { isTranscribing = false }
-                do {
-                    let transcript = try await chatStore.transcribe(audio)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !transcript.isEmpty else {
-                        toasts.showError("No speech was picked up.")
-                        return
-                    }
-                    let base = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    text = base.isEmpty ? "🎙️ \(transcript)" : "\(base) 🎙️ \(transcript)"
-                } catch {
-                    toasts.showError(error.localizedDescription)
-                }
-            }
+            transcribeIntoComposer(audio)
         } else {
             Task {
                 do { try await recorder.start() } catch { toasts.showError(error.localizedDescription) }
+            }
+        }
+    }
+
+    private func transcribeIntoComposer(_ audio: Data) {
+        isTranscribing = true
+        Task {
+            defer { isTranscribing = false }
+            do {
+                let transcript = try await chatStore.transcribe(audio)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !transcript.isEmpty else {
+                    toasts.showError("No speech was picked up.")
+                    return
+                }
+                text = VoiceNoteRecorder.composerText(existing: text, transcript: transcript)
+            } catch {
+                toasts.showError(error.localizedDescription)
             }
         }
     }

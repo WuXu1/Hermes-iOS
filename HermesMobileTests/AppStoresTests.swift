@@ -428,6 +428,38 @@ struct AppStoresTests {
         #expect(client.transcribeProfiles == ["tutor"])
     }
 
+    @Test
+    func voiceNoteComposerTextHandlesEmptyAndNonEmptyComposer() {
+        #expect(VoiceNoteRecorder.composerText(existing: "", transcript: " hello ") == "🎙️ hello")
+        #expect(VoiceNoteRecorder.composerText(existing: "Note: ", transcript: "hello") == "Note: 🎙️ hello")
+    }
+
+    @Test @MainActor
+    func voiceNoteRecorderStopAndCancelWithoutRecordingAreSafe() throws {
+        let recorder = VoiceNoteRecorder()
+        recorder.cancel()
+        #expect(try recorder.stop().isEmpty)
+        #expect(!recorder.isRecording)
+    }
+
+    @Test @MainActor
+    func liveTranscribeRejectsOversizedAudioBeforeAnyRequest() async {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let requestCount = MutableBox(0)
+        StubURLProtocol.requestHandler = { request in
+            requestCount.value += 1
+            throw URLError(.badServerResponse)
+        }
+        defer { StubURLProtocol.requestHandler = nil }
+        let apiClient = RelayAPIClient(baseURLProvider: { "https://relay.example.com/v1" }, session: URLSession(configuration: configuration))
+        let client = LiveHermesClient(apiClient: apiClient, accessTokenProvider: { "token" }, allowDemoFallback: false)
+        await #expect(throws: (any Error).self) {
+            _ = try await client.transcribe(audio: Data(count: 5 * 1024 * 1024 + 1), mimeType: "audio/m4a")
+        }
+        #expect(requestCount.value == 0)
+    }
+
     @Test @MainActor
     func switchingAgentReloadsChatForThatAgent() async {
         let client = MockHermesClient()
