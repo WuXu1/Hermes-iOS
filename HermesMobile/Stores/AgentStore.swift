@@ -10,6 +10,7 @@ final class AgentStore {
     private(set) var selected: String
     var onSelectionChanged: (@MainActor (String) async -> Void)?
 
+    private var selectionTask: Task<Void, Never>?
     private let api: HermesWorkspaceAPI
     private let defaults: UserDefaults
 
@@ -46,7 +47,11 @@ final class AgentStore {
         selected = name
         defaults.set(name, forKey: Self.selectionKey)
         let callback = onSelectionChanged
-        Task { await callback?(name) }
+        selectionTask?.cancel()
+        selectionTask = Task {
+            guard !Task.isCancelled else { return }
+            await callback?(name)
+        }
     }
 
     #if DEBUG

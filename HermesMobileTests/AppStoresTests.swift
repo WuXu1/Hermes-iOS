@@ -1370,6 +1370,109 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func liveHermesClientSendsActiveProfileOnLoadClearAndSend() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let seen = MutableBox<[String]>([])
+        let sentBody = MutableBox<String?>(nil)
+        let conversationID = UUID()
+
+        StubURLProtocol.requestHandler = { request in
+            let url = try #require(request.url)
+            seen.value.append(url.absoluteString)
+            if url.path.hasSuffix("/messages"), let stream = request.httpBodyStream {
+                stream.open()
+                var data = Data()
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while stream.hasBytesAvailable {
+                    let n = stream.read(&buffer, maxLength: buffer.count)
+                    if n <= 0 { break }
+                    data.append(buffer, count: n)
+                }
+                stream.close()
+                sentBody.value = String(data: data, encoding: .utf8)
+            }
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = #"""
+            {"data":{"replyState":"pending","conversation":{"id":"\#(conversationID.uuidString)","title":"Hermes","updatedAt":"2026-04-03T21:15:00Z","messages":[]}}}
+            """#.data(using: .utf8)!
+            return (response, data)
+        }
+        defer { StubURLProtocol.requestHandler = nil }
+
+        let hermesClient = LiveHermesClient(
+            apiClient: RelayAPIClient(baseURLProvider: { "https://relay.example.com/v1" }, session: session),
+            accessTokenProvider: { "token" },
+            accessTokenRefresher: { "token" },
+            allowDemoFallback: false
+        )
+        hermesClient.setActiveProfile("coach")
+
+        _ = await hermesClient.loadConversation()
+        _ = try await hermesClient.clearConversation()
+        _ = await hermesClient.send(message: "hi", clientMessageID: UUID())
+
+        #expect(seen.value.contains("https://relay.example.com/v1/conversations/current?profile=coach"))
+        #expect(seen.value.contains("https://relay.example.com/v1/conversations/current/clear?profile=coach"))
+        let body = try #require(sentBody.value)
+        #expect(body.contains("\"profile\":\"coach\""))
+    }
+
+    @MainActor
+    private final class GatedProfileClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        private var profile = "default"
+        private var gates: [String: CheckedContinuation<Void, Never>] = [:]
+        private var waiting: [String] = []
+
+        func setActiveProfile(_ profile: String) { self.profile = profile }
+        func connect() async {}
+        func disconnect() async {}
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "", status: .delivered)
+        }
+        func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            AsyncStream { $0.finish() }
+        }
+        func loadConversation() async -> Conversation {
+            let captured = profile
+            if captured == "developer" {
+                waiting.append(captured)
+                await withCheckedContinuation { gates[captured] = $0 }
+            }
+            return Conversation(title: "title-\(captured)")
+        }
+        func clearConversation() async throws -> Conversation { Conversation(title: "cleared") }
+        func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation { Conversation(title: "x") }
+        var isWaiting: Bool { !waiting.isEmpty }
+        func release(_ profile: String) { gates.removeValue(forKey: profile)?.resume() }
+    }
+
+    @Test @MainActor
+    func staleLoadAfterAgentSwitchDoesNotReplaceNewConversation() async throws {
+        let client = GatedProfileClient()
+        let suiteName = "chat-stale-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let chat = ChatStore(hermesClient: client, persistence: UserDefaultsAppPersistenceStore(defaults: defaults))
+
+        client.setActiveProfile("developer")
+        let stale = Task { await chat.reloadConversation() }
+        while !client.isWaiting { await Task.yield() }
+
+        client.setActiveProfile("coach")
+        await chat.reloadConversation()
+        #expect(chat.conversation?.title == "title-coach")
+
+        client.release("developer")
+        await stale.value
+        #expect(chat.conversation?.title == "title-coach")
+        #expect(chat.persistence.loadConversationCache()?.title == "title-coach")
+    }
+
+    @Test @MainActor
     func liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]

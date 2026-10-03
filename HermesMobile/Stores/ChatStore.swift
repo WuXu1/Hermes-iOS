@@ -11,6 +11,9 @@ final class ChatStore {
     private var pollingTask: Task<Void, Never>?
     private var streamingTask: Task<Void, Never>?
     private(set) var streamingMessageID: UUID?
+    /// Bumped whenever the conversation is replaced wholesale (agent/chat switch); loads that
+    /// started under an older generation are discarded.
+    private var loadGeneration = 0
 
     var isStreaming: Bool { streamingMessageID != nil }
 
@@ -53,12 +56,15 @@ final class ChatStore {
     }
 
     func loadConversation() async {
+        let generation = loadGeneration
         isLoading = true
-        defer { isLoading = false }
+        defer { if generation == loadGeneration { isLoading = false } }
         let cachedConversation = conversation ?? persistence.loadConversationCache()
+        let loaded = await hermesClient.loadConversation()
+        guard generation == loadGeneration else { return }
         conversation = mergeConversationMetadata(
             from: cachedConversation,
-            into: await hermesClient.loadConversation()
+            into: loaded
         )
         if let latestUsage = conversation?.latestUsage {
             lastTokenUsage = latestUsage
@@ -73,6 +79,7 @@ final class ChatStore {
     /// Drops the cached conversation and loads whichever one the relay now marks
     /// current (after switching or starting a chat from history).
     func reloadConversation() async {
+        loadGeneration += 1
         streamingTask?.cancel()
         streamingTask = nil
         streamingMessageID = nil
@@ -220,13 +227,16 @@ final class ChatStore {
         // If streaming failed after the job was accepted, immediately refresh once
         // and then fall back to polling only if the server still hasn't delivered.
         if needsPollingFallback {
+            let generation = loadGeneration
             let refreshed = await hermesClient.loadConversation()
-            conversation = mergeConversationMetadata(from: conversation, into: refreshed)
-            if let latestUsage = conversation?.latestUsage {
-                lastTokenUsage = latestUsage
+            if generation == loadGeneration {
+                conversation = mergeConversationMetadata(from: conversation, into: refreshed)
+                if let latestUsage = conversation?.latestUsage {
+                    lastTokenUsage = latestUsage
+                }
+                streamingMessageID = nil
+                restartPendingPollingIfNeeded()
             }
-            streamingMessageID = nil
-            restartPendingPollingIfNeeded()
         }
 
         if !hasPendingMessages {
@@ -433,7 +443,9 @@ final class ChatStore {
                 attempts += 1
                 try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { break }
+                let generation = self.loadGeneration
                 let fresh = await self.hermesClient.loadConversation()
+                guard !Task.isCancelled, generation == self.loadGeneration else { break }
                 self.conversation = self.mergeConversationMetadata(from: self.conversation, into: fresh)
                 if let latestUsage = self.conversation?.latestUsage {
                     self.lastTokenUsage = latestUsage
