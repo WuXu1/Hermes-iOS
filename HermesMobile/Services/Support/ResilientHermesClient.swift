@@ -29,6 +29,10 @@ final class ResilientHermesClient: HermesClientProtocol {
         fallback.setActiveProfile(profile)
     }
 
+    func transcribe(audio: Data, mimeType: String) async throws -> String {
+        try await primary.transcribe(audio: audio, mimeType: mimeType)
+    }
+
     func connect() async {
         await primary.connect()
         if allowsFallback() && primary.connectionStatus == .error {

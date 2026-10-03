@@ -264,6 +264,10 @@ final class ChatStore {
         pollingTask = nil
     }
 
+    func transcribe(_ audio: Data) async throws -> String {
+        try await hermesClient.transcribe(audio: audio, mimeType: "audio/m4a")
+    }
+
     func cancelStreaming() {
         streamingTask?.cancel()
         streamingTask = nil

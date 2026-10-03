@@ -258,6 +258,20 @@ final class LiveHermesClient: HermesClientProtocol {
         }
     }
 
+    private struct TranscribeBody: Encodable { let profile: String; let mimeType: String; let data: String }
+    private struct TranscribeResponse: Decodable { let transcript: String }
+
+    func transcribe(audio: Data, mimeType: String) async throws -> String {
+        guard audio.count <= 5 * 1024 * 1024 else {
+            throw RelayAPIClient.ClientError.requestFailed("That voice note is too large to transcribe (5 MB max).")
+        }
+        let body = TranscribeBody(profile: activeProfile, mimeType: mimeType, data: audio.base64EncodedString())
+        let response: TranscribeResponse = try await performAuthorizedRequest { [self] token in
+            try await self.apiClient.post(path: "audio/transcribe", body: body, accessToken: token)
+        }
+        return response.transcript
+    }
+
     func clearConversation() async throws -> Conversation {
         let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
             try await self.apiClient.post(

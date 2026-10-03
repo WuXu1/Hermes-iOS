@@ -12,4 +12,12 @@ protocol HermesClientProtocol {
     func loadConversation() async -> Conversation
     func clearConversation() async throws -> Conversation
     func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation
+    func transcribe(audio: Data, mimeType: String) async throws -> String
+}
+
+extension HermesClientProtocol {
+    /// Clients without server transcription (test stubs) refuse it.
+    func transcribe(audio: Data, mimeType: String) async throws -> String {
+        throw NSError(domain: "Hermes", code: 1, userInfo: [NSLocalizedDescriptionKey: "Voice notes aren't available."])
+    }
 }

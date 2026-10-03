@@ -95,6 +95,14 @@ final class MockHermesClient: HermesClientProtocol {
         }
     }
 
+    var nextTranscript = ""
+    private(set) var transcribeProfiles: [String] = []
+
+    func transcribe(audio: Data, mimeType: String) async throws -> String {
+        transcribeProfiles.append(activeProfile)
+        return nextTranscript
+    }
+
     func setActiveProfile(_ profile: String) {
         activeProfile = profile
     }

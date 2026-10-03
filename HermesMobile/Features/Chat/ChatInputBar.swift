@@ -1,4 +1,3 @@
-import Speech
 import SwiftUI
 
 struct ChatInputBar: View {
@@ -14,13 +13,12 @@ struct ChatInputBar: View {
     var assignee: Binding<String?> = .constant(nil)
     var assignableRoles: [HermesProfile] = []
 
-    @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
     @Environment(AgentStore.self) private var agents
-    @Environment(TabRouter.self) private var router
+    @Environment(ToastCenter.self) private var toasts
 
-    @State private var speechService = LiveSpeechService()
-    @State private var dictationBaseText = ""
+    @State private var recorder = VoiceNoteRecorder()
+    @State private var isTranscribing = false
 
     private var assignedStyle: RoleStyle? {
         assignee.wrappedValue.map { RoleStyle.forProfile($0) }
@@ -103,7 +101,7 @@ struct ChatInputBar: View {
 
                 // Text input area
                 TextField(
-                    speechService.isListening ? "Listening..." : assignedStyle.map { "Describe the task for \(agents.label(for: $0.name))" } ?? "Reply to Hermes",
+                    recorder.isRecording ? "Recording..." : assignedStyle.map { "Describe the task for \(agents.label(for: $0.name))" } ?? "Reply to Hermes",
                     text: $text,
                     axis: .vertical
                 )
@@ -143,35 +141,35 @@ struct ChatInputBar: View {
 
                     Spacer()
 
-                    // Dictation mic button
+                    // Voice note button
                     if !isStreaming {
                         Button {
-                            toggleDictation()
+                            toggleVoiceNote()
                         } label: {
-                            Image(systemName: speechService.isListening ? "stop.fill" : "mic")
+                            if isTranscribing {
+                                ProgressView()
+                                    .frame(width: 36, height: 36)
+                            } else if recorder.isRecording {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "stop.fill")
+                                    Text(Duration.seconds(recorder.elapsed).formatted(.time(pattern: .minuteSecond)))
+                                        .font(.caption.monospacedDigit())
+                                }
                                 .font(.system(size: Design.Size.iconMedium, weight: .medium))
-                                .foregroundStyle(speechService.isListening ? .red : Design.Colors.secondaryForeground)
-                                .frame(width: 36, height: 36)
-                                .background(speechService.isListening ? Design.Colors.surface : .clear)
-                                .clipShape(Circle())
+                                .foregroundStyle(.red)
+                                .padding(.horizontal, Design.Spacing.sm)
+                                .frame(height: 36)
+                                .background(Design.Colors.surface)
+                                .clipShape(Capsule())
+                            } else {
+                                Image(systemName: "mic")
+                                    .font(.system(size: Design.Size.iconMedium, weight: .medium))
+                                    .foregroundStyle(Design.Colors.secondaryForeground)
+                                    .frame(width: 36, height: 36)
+                            }
                         }
-                        .accessibilityLabel(speechService.isListening ? "Stop dictation" : "Start dictation")
-                    }
-
-                    // Talk mode button (right side, before send)
-                    if !isStreaming && !speechService.isListening && !canSend && assignee.wrappedValue == nil {
-                        Button {
-                            router.isVoiceOverlayPresented = true
-                        } label: {
-                            Image(systemName: "waveform")
-                                .font(.system(size: Design.Size.iconMedium, weight: .medium))
-                                .foregroundStyle(Design.Colors.foreground)
-                                .frame(width: 36, height: 36)
-                                .background(Design.Brand.accent)
-                                .clipShape(Circle())
-                        }
-                        .accessibilityLabel("Start voice mode")
-                        .transition(.scale.combined(with: .opacity))
+                        .disabled(isTranscribing)
+                        .accessibilityLabel(recorder.isRecording ? "Stop recording" : "Record voice note")
                     }
 
                     // Send / Stop button
@@ -192,15 +190,6 @@ struct ChatInputBar: View {
         .animation(Design.Motion.quickResponse, value: isSlashMode)
         .animation(Design.Motion.quickResponse, value: isStreaming)
         .animation(Design.Motion.quickResponse, value: canSend)
-        .onAppear {
-            speechService.onTranscriptChange = { partialTranscript in
-                text = mergedDictationText(partialTranscript)
-            }
-            speechService.onAutoStop = { finalTranscript in
-                text = mergedDictationText(finalTranscript)
-                dictationBaseText = ""
-            }
-        }
     }
 
     // MARK: - Attachment Preview Strip
@@ -348,40 +337,39 @@ struct ChatInputBar: View {
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
-    // MARK: - Dictation
+    // MARK: - Voice notes
 
-    private func toggleDictation() {
-        if speechService.isListening {
-            speechService.stopListening()
-            text = mergedDictationText(speechService.transcript)
-            dictationBaseText = ""
+    private func toggleVoiceNote() {
+        if recorder.isRecording {
+            let audio: Data
+            do { audio = try recorder.stop() } catch {
+                toasts.showError(error.localizedDescription)
+                return
+            }
+            isTranscribing = true
+            Task {
+                defer { isTranscribing = false }
+                do {
+                    let transcript = try await chatStore.transcribe(audio)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !transcript.isEmpty else {
+                        toasts.showError("No speech was picked up.")
+                        return
+                    }
+                    let base = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    text = base.isEmpty ? "🎙️ \(transcript)" : "\(base) 🎙️ \(transcript)"
+                } catch {
+                    toasts.showError(error.localizedDescription)
+                }
+            }
         } else {
             Task {
-                do {
-                    dictationBaseText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    try await speechService.startListening()
-                } catch {
-                    dictationBaseText = ""
-                }
+                do { try await recorder.start() } catch { toasts.showError(error.localizedDescription) }
             }
         }
     }
 
     private func handlePrimaryAction() {
-        if speechService.isListening {
-            speechService.stopListening()
-            text = mergedDictationText(speechService.transcript)
-            dictationBaseText = ""
-        }
         onSend()
-    }
-
-    private func mergedDictationText(_ transcript: String) -> String {
-        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        let base = dictationBaseText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if base.isEmpty { return trimmedTranscript }
-        if trimmedTranscript.isEmpty { return base }
-        return "\(base) \(trimmedTranscript)"
     }
 }

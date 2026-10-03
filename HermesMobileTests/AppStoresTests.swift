@@ -419,6 +419,16 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func voiceNoteTranscriptGoesIntoTheComposer() async throws {
+        let client = MockHermesClient()
+        client.nextTranscript = "Hi tutor, quiz me on week three"
+        client.setActiveProfile("tutor")
+        let text = try await client.transcribe(audio: Data([0, 1, 2]), mimeType: "audio/m4a")
+        #expect(text == "Hi tutor, quiz me on week three")
+        #expect(client.transcribeProfiles == ["tutor"])
+    }
+
+    @Test @MainActor
     func switchingAgentReloadsChatForThatAgent() async {
         let client = MockHermesClient()
         let suiteName = "chat-agent-\(UUID().uuidString)"
