@@ -19,12 +19,12 @@ iOS App ──HTTP/SSE──▶ Relay ──WebSocket──▶ Connector ──�
 
 - self-hosted-first setup
 - public-safe defaults
-- native iPhone UX for chat, voice, widgets, and sensor-aware context
+- native iPhone UX for chat, voice notes, widgets, and sensor-aware context
 
 ## What is broadly working
 
 - streaming chat and attachment delivery
-- voice mode with Realtime bootstrap and Hermes delegation
+- voice notes transcribed by Hermes on the server
 - dynamic slash-command catalog from Hermes surfaces
 - sensor pipeline (location, health, motion) through connector SQLite + MCP tools
 - widgets, Live Activities, inline image rendering, and model/context UI
@@ -34,7 +34,6 @@ iOS App ──HTTP/SSE──▶ Relay ──WebSocket──▶ Connector ──�
 
 - APNs end-to-end on real Apple credentials
 - background location behavior
-- background audio continuity under real interruptions
 
 ## Test posture
 

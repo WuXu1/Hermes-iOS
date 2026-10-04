@@ -4,11 +4,7 @@ import argparse
 import asyncio
 import getpass
 import os
-import secrets
-import shutil
-import subprocess
 import sys
-from pathlib import Path
 
 import httpx
 import qrcode
@@ -64,251 +60,6 @@ def validate_relay_health(relay_url: str) -> bool:
         return False
 
 
-def _find_relay_source_dir() -> Path | None:
-    """Locate the relay/ directory relative to the connector package."""
-    # connector/src/hermes_mobile_connector/cli.py → repo/relay/
-    candidate = Path(__file__).resolve().parent.parent.parent.parent / "relay"
-    if (candidate / "app" / "main.py").exists():
-        return candidate
-    return None
-
-
-def _find_flyctl() -> str | None:
-    """Find the flyctl binary."""
-    for name in ("flyctl", "fly"):
-        path = shutil.which(name)
-        if path:
-            return path
-    return None
-
-
-def _run_fly(
-    flyctl: str,
-    args: list[str],
-    *,
-    cwd: str | Path | None = None,
-    check: bool = True,
-) -> subprocess.CompletedProcess:
-    """Run a flyctl command, printing output live.
-
-    Raises subprocess.CalledProcessError on non-zero exit when check=True (default).
-    """
-    return subprocess.run(
-        [flyctl, *args],
-        cwd=cwd,
-        text=True,
-        check=check,
-    )
-
-
-def _resolve_mpg_cluster_id(flyctl: str, cluster_name: str) -> str | None:
-    """Resolve a Managed Postgres cluster ID from its name via ``fly mpg list``.
-
-    Tries ``--json`` first for reliable parsing, then falls back to
-    plain-text table parsing.  Returns the cluster ID string, or None.
-    """
-    import json as _json  # imported at function scope so except can reference it
-
-    # Try JSON output first
-    try:
-        result = subprocess.run(
-            [flyctl, "mpg", "list", "--json"],
-            capture_output=True, text=True, check=True,
-        )
-        clusters = _json.loads(result.stdout)
-        if isinstance(clusters, list):
-            for cluster in clusters:
-                if cluster.get("name") == cluster_name:
-                    return cluster.get("id") or cluster.get("ID")
-    except (subprocess.CalledProcessError, _json.JSONDecodeError, ValueError):
-        pass
-    except Exception:
-        pass
-
-    # Fallback: plain-text table parsing
-    try:
-        result = subprocess.run(
-            [flyctl, "mpg", "list"],
-            capture_output=True, text=True, check=True,
-        )
-        for line in result.stdout.splitlines():
-            if cluster_name in line:
-                parts = line.split()
-                if parts:
-                    return parts[0]
-    except Exception:
-        pass
-
-    return None
-
-
-def deploy_relay_to_fly() -> tuple[str, str]:
-    """Guided Fly.io relay deployment. Returns (relay_url, setup_secret)."""
-    print()
-
-    # 1. Check flyctl
-    flyctl = _find_flyctl()
-    if not flyctl:
-        print("flyctl is not installed.")
-        print("Install it from: https://fly.io/docs/flyctl/install/")
-        print("Then run this setup again.")
-        raise SystemExit(1)
-    print(f"Found flyctl: {flyctl}")
-
-    # 2. Check auth
-    result = subprocess.run([flyctl, "auth", "whoami"], capture_output=True, text=True)
-    if result.returncode != 0:
-        print("Not logged in to Fly.io. Launching login...")
-        _run_fly(flyctl, ["auth", "login"])
-
-    # 3. App name
-    default_user = os.getenv("USER") or getpass.getuser() or "user"
-    default_app = f"hermes-relay-{default_user}".lower().replace("_", "-")
-    app_name = prompt("Fly app name", default=default_app)
-
-    # 4. Region
-    region = prompt("Fly region (see https://fly.io/docs/reference/regions/)", default="iad")
-
-    # 5. Generate secrets
-    internal_key = secrets.token_hex(16)
-    setup_secret = secrets.token_hex(16)
-    print(f"\nGenerated INTERNAL_API_KEY: {internal_key[:8]}...")
-    print(f"Generated CONNECTOR_SETUP_SECRET: {setup_secret[:8]}...")
-
-    # 6. Find relay source
-    relay_dir = _find_relay_source_dir()
-    if relay_dir is None:
-        print("\nCould not find relay/ directory. Deploy manually:")
-        print("  cd relay && flyctl deploy")
-        raise SystemExit(1)
-
-    # 7. Write fly.toml with app name and PUBLIC_BASE_URL
-    relay_url = f"https://{app_name}.fly.dev/v1"
-    fly_toml = relay_dir / "fly.toml"
-    fly_toml_content = fly_toml.read_text()
-
-    # Back up the original
-    fly_toml_backup = relay_dir / "fly.toml.bak"
-    fly_toml_backup.write_text(fly_toml_content)
-
-    updated = fly_toml_content
-    # Replace app name
-    import re
-    updated = re.sub(r'^app\s*=\s*"[^"]*"', f'app = "{app_name}"', updated, count=1, flags=re.MULTILINE)
-    # Replace PUBLIC_BASE_URL
-    updated = re.sub(
-        r'PUBLIC_BASE_URL\s*=\s*"[^"]*"',
-        f'PUBLIC_BASE_URL = "{relay_url}"',
-        updated,
-        count=1,
-    )
-    fly_toml.write_text(updated)
-
-    print(f"\nUpdated fly.toml: app={app_name}, PUBLIC_BASE_URL={relay_url}")
-
-    try:
-        # 8. Create app
-        print(f"\nCreating Fly app: {app_name}...")
-        try:
-            _run_fly(flyctl, ["apps", "create", app_name])
-        except subprocess.CalledProcessError:
-            print("  App creation failed — it may already exist. Continuing.")
-
-        # 9. Create Postgres (try Managed Postgres first, fall back to legacy)
-        # See: https://fly.io/docs/mpg/create-and-connect/
-        db_name = f"{app_name}-db"
-        use_managed = False
-        print(f"\nCreating Postgres database: {db_name}...")
-        print("  Trying Managed Postgres (fly mpg) first...")
-        try:
-            _run_fly(flyctl, ["mpg", "create", "--name", db_name, "--region", region])
-            use_managed = True
-            print("  Managed Postgres created.")
-        except subprocess.CalledProcessError:
-            print("  Managed Postgres not available. Falling back to legacy Fly Postgres...")
-            try:
-                _run_fly(flyctl, [
-                    "postgres", "create",
-                    "--name", db_name,
-                    "--region", region,
-                    "--vm-size", "shared-cpu-1x",
-                    "--initial-cluster-size", "1",
-                    "--volume-size", "1",
-                ])
-                print("  Legacy Postgres created.")
-            except subprocess.CalledProcessError as e:
-                print(f"  ERROR: Postgres creation failed: {e}")
-                print("  Create the database manually, then re-run setup:")
-                print(f"    fly mpg create --name {db_name} --region {region}")
-                raise
-
-        # 10. Attach Postgres
-        print(f"\nAttaching database to app...")
-        if use_managed:
-            # Managed Postgres: fly mpg attach requires the cluster ID, not name.
-            # Resolve it from fly mpg list.
-            cluster_id = _resolve_mpg_cluster_id(flyctl, db_name)
-            if cluster_id:
-                try:
-                    _run_fly(flyctl, ["mpg", "attach", cluster_id, "-a", app_name])
-                    print(f"  Database attached (managed, cluster {cluster_id}).")
-                except subprocess.CalledProcessError as e:
-                    print(f"  ERROR: Managed attach failed: {e}")
-                    print(f"  Attach manually using the cluster ID from 'fly mpg list':")
-                    print(f"    fly mpg attach <CLUSTER_ID> -a {app_name}")
-                    raise
-            else:
-                print(f"  WARNING: Could not resolve cluster ID for '{db_name}'.")
-                print(f"  Run 'fly mpg list' to find the cluster ID, then attach manually:")
-                print(f"    fly mpg attach <CLUSTER_ID> -a {app_name}")
-        else:
-            # Legacy Postgres: attach by app name
-            try:
-                _run_fly(flyctl, ["postgres", "attach", db_name, "-a", app_name])
-                print("  Database attached (legacy).")
-            except subprocess.CalledProcessError as e:
-                print(f"  ERROR: Database attach failed: {e}")
-                print(f"  Attach manually:")
-                print(f"    fly postgres attach {db_name} -a {app_name}")
-                raise
-
-        # 11. Set secrets
-        print("\nSetting secrets...")
-        _run_fly(flyctl, [
-            "secrets", "set",
-            f"INTERNAL_API_KEY={internal_key}",
-            f"CONNECTOR_SETUP_SECRET={setup_secret}",
-            "-a", app_name,
-        ])
-
-        # 12. Deploy
-        print(f"\nDeploying relay from {relay_dir}...")
-        result = _run_fly(flyctl, ["deploy", "-a", app_name], cwd=relay_dir)
-        if result.returncode != 0:
-            print("Deployment failed. Check the output above.")
-            raise SystemExit(1)
-
-        # 13. Wait for health
-        print(f"\nWaiting for relay to become healthy at {relay_url}...")
-        for attempt in range(30):
-            if validate_relay_health(relay_url):
-                print("Relay is healthy!")
-                break
-            import time
-            time.sleep(2)
-        else:
-            print("Relay did not become healthy within 60 seconds.")
-            print(f"Check status: flyctl status -a {app_name}")
-            print(f"View logs: flyctl logs -a {app_name}")
-
-    finally:
-        # Restore original fly.toml so we don't commit personal values
-        fly_toml.write_text(fly_toml_content)
-        fly_toml_backup.unlink(missing_ok=True)
-
-    return relay_url, setup_secret
-
-
 def resolve_relay_url(connector: HermesMobileConnector) -> tuple[str, str | None]:
     """Detect or prompt for a relay URL. Returns (relay_url, setup_secret_or_none)."""
     # Check env var first
@@ -322,29 +73,22 @@ def resolve_relay_url(connector: HermesMobileConnector) -> tuple[str, str | None
             print("Warning: relay is not responding. Continuing anyway...")
             return existing, os.getenv("CONNECTOR_SETUP_SECRET")
 
-    # No relay configured — offer options
-    relay_dir = _find_relay_source_dir()
-    options: dict[str, str] = {}
-    if relay_dir and _find_flyctl():
-        options["1"] = "Deploy a new relay on Fly.io (recommended)"
-    options["2"] = "Enter an existing relay URL"
-    options["3"] = "Use local network relay (simulator or same-network testing)"
-
-    default = "1" if "1" in options else "2"
-    choice = choose_option("\nHow would you like to connect to a relay?", options, default=default)
+    # No relay configured: ask for a URL, or offer a local-network relay for testing.
+    options: dict[str, str] = {
+        "1": "Enter the URL of your relay",
+        "2": "Use local network relay (simulator or same-network testing)",
+    }
+    choice = choose_option("\nHow would you like to connect to a relay?", options, default="1")
 
     if choice == "1":
-        return deploy_relay_to_fly()
-
-    if choice == "2":
-        url = prompt("Relay API base URL (e.g. https://your-relay.fly.dev/v1)")
+        url = prompt("Relay API base URL (ending in /v1)")
         if url and validate_relay_health(url):
             print("Relay is reachable and healthy.")
         elif url:
             print("Warning: relay is not responding. Continuing anyway...")
         return url or "", os.getenv("CONNECTOR_SETUP_SECRET")
 
-    # choice == "3" — local network
+    # choice == "2" — local network
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

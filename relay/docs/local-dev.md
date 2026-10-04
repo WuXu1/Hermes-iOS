@@ -13,7 +13,6 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-Or use Docker Compose from the same directory if you want a containerized local stack.
 
 ## Choose the right base URL
 

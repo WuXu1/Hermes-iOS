@@ -10,7 +10,7 @@
 - runs Hermes jobs on the host through the CLI or configured API runtime
 - registers the local `hermes_mobile` MCP server in `~/.hermes/config.yaml`
 - stores sensor data in `~/.hermes-mobile/state/sensors.db`
-- manages OpenAI Realtime talk configuration for the host
+- keeps dormant OpenAI Realtime talk configuration (unused by the app)
 - installs a background service on macOS and WSL2
 
 ## Prerequisites
@@ -56,10 +56,9 @@ export HERMES_MOBILE_CONNECTOR_HOME=~/.hermes-mobile
 hermes-mobile setup
 ```
 
-The wizard supports three paths:
+The wizard supports two paths:
 
-- **Deploy a new relay on Fly.io**
-- **Use an existing relay URL**
+- **Use your relay URL**
 - **Use a local-network relay for same-network testing**
 
 You can also bypass the prompt:
@@ -98,7 +97,6 @@ During setup the connector can optionally:
 
 - register `mcp_servers.hermes_mobile` in `~/.hermes/config.yaml`
 - validate the MCP entry with `hermes mcp test hermes_mobile`
-- configure OpenAI Realtime talk mode with a connector-owned API key
 - install and start the background service
 
 If you want to skip MCP registration:
@@ -176,9 +174,9 @@ Platform notes:
 - Windows support is WSL2-only through a Scheduled Task
 - native Windows Hermes execution is not supported
 
-## Realtime talk configuration
+## Realtime talk configuration (dormant)
 
-Realtime talk is connector-owned, not app-owned.
+The app no longer has a live voice mode; this command and the relay talk APIs remain only as dormant code.
 
 Configure it during setup or later:
 
@@ -200,7 +198,7 @@ hermes-mobile status
 ### Relay setup
 
 - If you already have a relay, set `HERMES_MOBILE_RELAY_URL` and rerun `hermes-mobile setup`.
-- If the Fly wizard fails, follow the manual steps in [../relay/docs/fly-io.md](../relay/docs/fly-io.md).
+- For a VM deployment, use [../deploy/vm/README.md](../deploy/vm/README.md).
 - If you are using a local relay, confirm the phone can reach the Mac's LAN IP.
 
 ### Hermes execution

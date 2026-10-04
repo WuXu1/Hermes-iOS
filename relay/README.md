@@ -7,8 +7,8 @@ The relay is the public control plane for Hermes iOS. It handles pairing, auth, 
 - device registration, auth, refresh, and session lifecycle
 - connector-first pairing and host management
 - durable message jobs with SSE progress streaming
-- talk readiness and voice-session bootstrap
-- inbox APIs and APNs registration/delivery
+- an allowlisted proxy for the Hermes dashboard API, memory and audio transcription
+- dormant talk and inbox APIs (no app UI; blocked by the VM Caddy config) and APNs registration/delivery
 
 In production, Hermes execution stays on the user-owned host through the connector.
 
@@ -29,8 +29,6 @@ pip install -e .[dev]
 cp .env.example .env
 uvicorn app.main:app --reload
 ```
-
-You can also use Docker Compose from the same directory if you want a local Postgres-backed stack.
 
 For same-network device testing, see [docs/local-dev.md](docs/local-dev.md).
 
@@ -102,14 +100,14 @@ For public/self-hosted users, `connector` mode is the intended deployment model.
 - `POST /v1/messages`
 - `GET /v1/jobs/{job_id}/events`
 
-### Talk mode
+### Talk mode (dormant: no app UI, blocked by Caddy in the VM deployment)
 
 - `GET /v1/talk/readiness`
 - `POST /v1/talk/session`
 - `POST /v1/talk/session/{voice_session_id}/end`
 - `POST /v1/talk/session/{voice_session_id}/turns`
 
-### Inbox and push
+### Inbox and push (inbox is dormant: no app UI)
 
 - `GET /v1/inbox`
 - `POST /v1/inbox/{id}/action`
@@ -126,12 +124,9 @@ For public/self-hosted users, `connector` mode is the intended deployment model.
 - Set `CONNECTOR_SETUP_SECRET` if you do not want arbitrary connectors bootstrapping accounts on your relay.
 - Keep APNs secrets on the relay only, never on the connector.
 
-## APNs and CarPlay
+## APNs
 
-APNs and CarPlay are optional platform features. They are documented in [../docs/CONFIGURATION.md](../docs/CONFIGURATION.md).
-
-- APNs is fully optional for base setup
-- CarPlay requires Apple approval for the entitlement and is inert when not configured
+APNs is optional and documented in [../docs/CONFIGURATION.md](../docs/CONFIGURATION.md). It is not required for base setup.
 
 ## Troubleshooting
 

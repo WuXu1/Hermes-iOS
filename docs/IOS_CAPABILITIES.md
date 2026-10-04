@@ -70,15 +70,11 @@ For end-user setup and configuration, start with:
 | `HermesLiveActivity.swift` | Wired | Lock Screen + Dynamic Island layouts with `Text(timerInterval:)` live clock |
 | `HermesWidgetBundle.swift` | Wired | Widget bundle entry point |
 | `LiveActivityService.swift` | Wired | Manages lifecycle — start/update/end; no polling timer (native clock via startDate) |
-| `TalkStore` | Wired | Starts on voice connect, updates on state change, ends on session close |
 | `ChatStore` | Wired | Starts on tool call, ends on finish/fail/cancel/clear |
 | Info.plist | Configured | `NSSupportsLiveActivities: true`, `NSSupportsLiveActivitiesFrequentUpdates: true` |
 | Xcode Previews | Wired | `LiveActivityPreviews.swift` in main app target (Lock Screen + Dynamic Island mockups) |
 
 ### Next Steps
-- [x] Add `Activity<HermesActivityAttributes>.request()` call in `TalkStore.startSession()`
-- [x] Add `activity.update()` on voice state changes (thinking, speaking, tool call)
-- [x] Add `activity.end()` in `TalkStore.endSession()`
 - [x] Add `activity.update()` in `ChatStore` during streaming (tool activity labels)
 - [x] Add cleanup on stream failure, cancellation, and conversation clear
 - [x] Use `Text(timerInterval:)` for native live-ticking timer on Lock Screen
@@ -86,10 +82,8 @@ For end-user setup and configuration, start with:
 - [ ] Test on physical device (Dynamic Island requires iPhone 14 Pro+)
 
 ### Use Case Ideas
-- **Voice session indicator**: Lock Screen shows "Hermes is listening" with elapsed time — user knows the session is active without opening the app
 - **Tool call progress**: "Hermes is reading config.yaml..." visible on Lock Screen while phone is locked
 - **Future: Home Screen widgets**: Same Widget Extension target hosts static widgets showing health summary, last location, recent conversations
-- **Future: CarPlay**: Widget architecture enables CarPlay voice assistant integration
 - **Hermes Skill**: Agent could trigger Live Activities for long-running tasks — "I'll research that and update you" → Live Activity shows progress
 
 ---
@@ -191,34 +185,7 @@ For end-user setup and configuration, start with:
 
 ## 6. Speech Recognition
 
-**What it does:** On-device audio transcription using Apple's Speech framework (SFSpeechRecognizer). Can supplement or replace OpenAI Realtime transcription for local voice commands.
-
-### Current Status
-
-| Component | State | Detail |
-|-----------|-------|--------|
-| `NSSpeechRecognitionUsageDescription` | Configured | In project.yml |
-| `LiveSpeechService.swift` | Built | SFSpeechRecognizer wrapper with on-device recognition support |
-| On-device recognition | Built | Uses `supportsOnDeviceRecognition` when available |
-| Permission request | Wired | `SFSpeechRecognizer.requestAuthorization()` in service + PermissionsStore |
-| Chat composer mic button | Wired | Dictation button in ChatInputBar with live transcript + auto-stop commit |
-| Audio session | Built | Configured with `.allowBluetoothHFP` (non-deprecated) |
-| `PermissionType.speechRecognition` | Wired | In enum with icon, color, label; shown in capabilities list |
-
-### Next Steps
-- [x] Create `LiveSpeechService.swift` wrapping `SFSpeechRecognizer`
-- [x] Implement on-device real-time transcription from audio buffer
-- [x] Add mic button to chat input bar for dictation
-- [x] Add `.speechRecognition` to `PermissionType` enum
-- [x] Fix transcript loss on auto-stop (onAutoStop callback)
-- [ ] Integrate as fallback when OpenAI Realtime is unavailable
-- [ ] Consider using for local "wake word" detection without a full Realtime session
-
-### Use Case Ideas
-- **Offline voice commands**: "Hey Hermes, set a timer" works without internet via on-device recognition
-- **Wake word**: Local speech recognition listens for "Hey Hermes" to start a full voice session
-- **Privacy-first transcription**: Users who don't want audio sent to OpenAI can use on-device only
-- **Hermes Skill**: Local command skill that handles simple requests (timers, reminders, quick queries) without touching the cloud
+**Removed.** Live voice and on-device speech recognition are gone. Voice notes record audio in the app and are transcribed by Hermes on the server (`POST /api/audio/transcribe`), so no speech-recognition permission is needed.
 
 ---
 
@@ -263,7 +230,6 @@ iPhone Sensors → iOS App → Relay WebSocket → Connector → SQLite
                                                           ↓
                                               MCP Tools ← Hermes Agent
                                                           ↓
-                                              Voice Context → Realtime API
 ```
 
 ### Proposed Hermes Skill: `ios-context-awareness`

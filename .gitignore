@@ -56,3 +56,4 @@ AuthKey_*.p8
 
 # Built app packages
 *.ipa
+relay/uv.lock

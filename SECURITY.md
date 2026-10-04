@@ -28,7 +28,7 @@ The connector runs on the same machine as the Hermes Agent:
 - **WebSocket auth:** Authenticates to the relay using a credential obtained during setup
 - **Sensor data:** Stored locally in SQLite at `~/.hermes-mobile/state/sensors.db`
 - **MCP tools:** The `query_sensor_data` tool opens a read-only SQLite connection, preventing write-based SQL injection even if the LLM crafts a malicious query
-- **OpenAI API key:** Stored in `~/.hermes-mobile/secrets.json` (not in state.json), used only for Realtime voice sessions
+- **Optional OpenAI API key (dormant talk code):** If configured, stored in `~/.hermes-mobile/secrets.json` (not in state.json). The app no longer has a live voice mode, and the VM deployment blocks `/v1/talk/*`.
 
 ### iOS App
 
