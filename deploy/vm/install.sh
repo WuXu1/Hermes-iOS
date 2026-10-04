@@ -53,7 +53,10 @@ rsync -a --delete --exclude .venv --exclude tests "$REPO/connector/" /opt/hermes
 UV_PYTHON_INSTALL_DIR=/opt/hermes-mobile/python "$UV" venv --python 3.12 /opt/hermes-mobile/relay-venv --allow-existing
 "$UV" pip install --reinstall-package hermes-mobile-relay --python /opt/hermes-mobile/relay-venv/bin/python /opt/hermes-mobile/relay
 UV_PYTHON_INSTALL_DIR=/opt/hermes-mobile/python "$UV" venv --python 3.12 /opt/hermes-mobile/connector-venv --allow-existing
-"$UV" pip install --reinstall-package hermes-mobile-connector --python /opt/hermes-mobile/connector-venv/bin/python /opt/hermes-mobile/connector
+# Connector dependencies come from its lockfile; the relay is installed unlocked.
+(cd /opt/hermes-mobile/connector && "$UV" export --frozen --no-dev --no-emit-project --format requirements-txt) \
+  | "$UV" pip install --python /opt/hermes-mobile/connector-venv/bin/python -r -
+"$UV" pip install --reinstall-package hermes-mobile-connector --no-deps --python /opt/hermes-mobile/connector-venv/bin/python /opt/hermes-mobile/connector
 chmod -R a+rX /opt/hermes-mobile
 
 echo "== secrets (generated once, never printed)"
@@ -96,11 +99,27 @@ chmod 0644 /etc/systemd/system/hermes-mobile-connector.service
 if [[ -f /etc/caddy/Caddyfile && ! -f /etc/caddy/Caddyfile.bak-before-hermes-mobile && ! -f /etc/hermes-mobile/.caddyfile-generated ]]; then
   cp -p /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-before-hermes-mobile
 fi
-sed -e "s#__DOMAIN__#$DOMAIN#g" -e "s#__EMAIL__#$EMAIL#g" "$REPO/deploy/vm/Caddyfile.template" > /etc/caddy/Caddyfile
-chmod 0644 /etc/caddy/Caddyfile
+CADDY_TMP=$(mktemp /etc/hermes-mobile/Caddyfile.XXXXXX)
+trap 'rm -f "$CADDY_TMP"' EXIT
+sed -e "s#__DOMAIN__#$DOMAIN#g" -e "s#__EMAIL__#$EMAIL#g" "$REPO/deploy/vm/Caddyfile.template" > "$CADDY_TMP"
+caddy validate --config "$CADDY_TMP" --adapter caddyfile >/dev/null || { echo "generated Caddyfile is invalid; /etc/caddy/Caddyfile left untouched" >&2; exit 1; }
+chmod 0644 "$CADDY_TMP"
+mv -f "$CADDY_TMP" /etc/caddy/Caddyfile
 touch /etc/hermes-mobile/.caddyfile-generated
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile || { echo "generated Caddyfile is invalid; not reloading Caddy" >&2; exit 1; }
-ln -sf /opt/hermes-mobile/connector-venv/bin/hermes-mobile /usr/local/bin/hermes-mobile
+# `sudo -u hermes hermes-mobile ...` must see the same environment as the connector service
+# (values mirror deploy/vm/hermes-mobile-connector.service).
+rm -f /usr/local/bin/hermes-mobile  # an older install left a symlink here
+cat > /usr/local/bin/hermes-mobile <<'WRAPEOF'
+#!/bin/sh
+export HERMES_HOME=/data/.hermes
+export HERMES_MOBILE_CONNECTOR_HOME=/data/.hermes-mobile
+export HERMES_MOBILE_RELAY_INTERNAL_URL=http://127.0.0.1:8000/v1
+export HERMES_COMMAND=/home/hermes/.local/bin/hermes
+export HERMES_WORKDIR=/data/workspace
+export HERMES_DASHBOARD_URL=http://127.0.0.1:9119
+exec /opt/hermes-mobile/connector-venv/bin/hermes-mobile "$@"
+WRAPEOF
+chmod 0755 /usr/local/bin/hermes-mobile
 systemctl daemon-reload
 systemctl enable --now hermes-dashboard hermes-mobile-relay
 systemctl reload-or-restart caddy

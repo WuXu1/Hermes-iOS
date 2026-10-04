@@ -11,7 +11,7 @@ iPhone --HTTPS--> Caddy (443) --> relay (127.0.0.1:8000) <--WebSocket-- connecto
 | Piece | Where |
 |---|---|
 | Relay (user `hermes-relay`, SQLite) | `/opt/hermes-mobile/relay`, venv `/opt/hermes-mobile/relay-venv`, data `/var/lib/hermes-mobile-relay` |
-| Connector (user `hermes`) | `/opt/hermes-mobile/connector`, venv `/opt/hermes-mobile/connector-venv`, state `/data/.hermes-mobile` |
+| Connector (user `hermes`) | `/opt/hermes-mobile/connector`, venv `/opt/hermes-mobile/connector-venv` (built from `connector/uv.lock`), state `/data/.hermes-mobile`; `/usr/local/bin/hermes-mobile` is a wrapper that sets the connector's environment |
 | Dashboard API | service `hermes-dashboard`, loopback port 9119 |
 | Caddy | apt package; `/etc/caddy/Caddyfile` generated from `Caddyfile.template` |
 | Secrets | `/etc/hermes-mobile/{dashboard,relay,connector}.env` (root, mode 0600, generated once, never printed) |
@@ -19,7 +19,7 @@ iPhone --HTTPS--> Caddy (443) --> relay (127.0.0.1:8000) <--WebSocket-- connecto
 
 Assumes Hermes runs as user `hermes` with `HERMES_HOME=/data/.hermes` and the CLI at `/home/hermes/.local/bin/hermes`. The install never runs `hermes update` and never touches Hermes's own venv.
 
-Caddy only exposes `/v1/*` and returns 404 for connector, host, push, talk, docs and `/internal/*` paths.
+Caddy only exposes `/v1/*` and returns 404 for connector, host, push, talk, docs and `/internal/*` paths, plus `/v1/device/register` (the relay also refuses it with 403 in production). The relay's own dependencies are installed unlocked (it has no committed lockfile); only the connector is pinned.
 
 ## Azure prerequisites
 
@@ -73,6 +73,17 @@ sudo systemd-run --wait --pipe -p User=hermes-relay -p EnvironmentFile=/etc/herm
 With no options it lists devices (id, name, last seen). Add `--device <id>` to revoke one device, or `--all` to revoke every device.
 
 The phone must then pair again.
+
+## Verify
+
+After installing, from any machine, check that the blocked routes are closed (each should print 404):
+
+```bash
+for p in device/register hosts/current/revoke connector/setup talk/readiness; do
+  curl -s -o /dev/null -w "$p %{http_code}\n" -X POST https://<dns-name>/v1/$p
+done
+curl -s -o /dev/null -w "health %{http_code}\n" https://<dns-name>/v1/health   # 200
+```
 
 ## Logs
 

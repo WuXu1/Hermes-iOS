@@ -17,9 +17,8 @@ esac
 CADDY_INSTALLED_BY_US=0
 [[ -f /etc/hermes-mobile/.installed-caddy ]] && CADDY_INSTALLED_BY_US=1
 
-if [[ -x /opt/hermes-mobile/connector-venv/bin/hermes-mobile ]]; then
-  if ! sudo -u hermes env HERMES_HOME=/data/.hermes /opt/hermes-mobile/connector-venv/bin/hermes-mobile \
-    configure-mcp --unregister --profiles default,assistant,coach; then
+if [[ -x /usr/local/bin/hermes-mobile && -x /opt/hermes-mobile/connector-venv/bin/hermes-mobile ]]; then
+  if ! sudo -u hermes /usr/local/bin/hermes-mobile configure-mcp --unregister --profiles default,assistant,coach; then
     echo "WARNING: could not remove the phone-context entries automatically." >&2
     echo "Remove the hermes_mobile entries from the default, assistant and coach agents' configs by hand." >&2
   fi
