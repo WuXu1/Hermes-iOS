@@ -112,7 +112,7 @@ struct SettingsScreen: View {
                         title: "Base URL",
                         value: pairingStore.pairedRelayConfiguration?.baseURLString ?? relayConfiguration.activeBaseURLString ?? "Not configured"
                     )
-                    Text("Disconnect Hermes before changing the relay configuration.")
+                    Text("To use a different server, unpair this iPhone (bottom of Settings) and pair again.")
                         .font(Design.Typography.caption)
                         .foregroundStyle(Design.Colors.secondaryForeground)
                         .padding(.top, Design.Spacing.xs)

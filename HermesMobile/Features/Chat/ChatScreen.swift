@@ -168,7 +168,8 @@ struct ChatScreen: View {
 
     private var conversationTitle: String {
         let title = currentSession?.displayTitle ?? chatStore.conversation?.title ?? agentStore.selectedLabel
-        return title.isEmpty ? agentStore.selectedLabel : title
+        // A new conversation carries the relay's placeholder title "Hermes" until Hermes names it.
+        return (title.isEmpty || title == "Hermes") ? agentStore.selectedLabel : title
     }
 
     private var currentSession: HermesSessionSummary? {

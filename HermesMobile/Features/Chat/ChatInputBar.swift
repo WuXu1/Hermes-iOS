@@ -103,12 +103,12 @@ struct ChatInputBar: View {
 
                 // Text input area
                 TextField(
-                    recorder.isRecording ? "Recording..." : assignedStyle.map { "Describe the task for \(agents.label(for: $0.name))" } ?? "Reply to Hermes",
+                    recorder.isRecording ? "Recording..." : assignedStyle.map { "Describe the task for \(agents.label(for: $0.name))" } ?? "Message \(agents.selectedLabel)",
                     text: $text,
                     axis: .vertical
                 )
                     .accessibilityIdentifier("chat.composer")
-                    .accessibilityLabel("Reply to Hermes")
+                    .accessibilityLabel("Message \(agents.selectedLabel)")
                     .font(Design.Typography.body)
                     .foregroundStyle(Design.Colors.foreground)
                     .lineLimit(1...5)

@@ -166,10 +166,6 @@ final class HermesMobileUITests: XCTestCase {
         if identifiedField.exists {
             return identifiedField
         }
-        let textField = app.textFields["Reply to Hermes"]
-        if textField.exists {
-            return textField
-        }
-        return app.textViews["Reply to Hermes"]
+        return app.textViews["chat.composer"]
     }
 }

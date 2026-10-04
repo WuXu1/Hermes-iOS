@@ -7,6 +7,7 @@ struct ChatEmptyState: View {
 
     @Environment(TeamStore.self) private var teamStore
     @Environment(TabRouter.self) private var router
+    @Environment(AgentStore.self) private var agents
 
     private struct Starter: Identifiable {
         let id: String
@@ -16,12 +17,12 @@ struct ChatEmptyState: View {
         let template: String
     }
 
-    private let starters = [
+    private var starters: [Starter] { [
         Starter(id: "research", symbol: "magnifyingglass", title: "Research", subtitle: "Sourced answers from the web", template: "Research "),
         Starter(id: "web", symbol: "safari", title: "Do it on the web", subtitle: "Lookups, forms, account chores", template: "Go to "),
         Starter(id: "automate", symbol: "clock.arrow.2.circlepath", title: "Automate", subtitle: "Run something on a schedule", template: "Every morning at 8, "),
-        Starter(id: "remember", symbol: "brain", title: "Remember", subtitle: "Teach Hermes about you", template: "Remember that "),
-    ]
+        Starter(id: "remember", symbol: "brain", title: "Remember", subtitle: "Teach \(agents.selectedLabel) about you", template: "Remember that "),
+    ] }
 
     var body: some View {
         ScrollView {
@@ -31,7 +32,7 @@ struct ChatEmptyState: View {
                         .font(.largeTitle.weight(.bold))
                         .fontDesign(.rounded)
                         .foregroundStyle(Design.Colors.textPrimary)
-                    Text("What should Hermes take care of?")
+                    Text("What should \(agents.selectedLabel) take care of?")
                         .font(.title3)
                         .foregroundStyle(Design.Colors.textSecondary)
                 }
