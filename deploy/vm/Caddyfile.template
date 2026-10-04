@@ -1,8 +1,13 @@
 {
-	email __EMAIL__
+	auto_https off
+	servers {
+		trusted_proxies static 127.0.0.1/32
+	}
 }
 
-__DOMAIN__ {
+# Loopback only: `tailscale serve` terminates TLS on the tailnet and forwards here.
+http://127.0.0.1:8080 {
+	bind 127.0.0.1
 	encode gzip
 
 	@blocked {
@@ -13,9 +18,7 @@ __DOMAIN__ {
 	}
 
 	handle /v1/* {
-		reverse_proxy 127.0.0.1:8000 {
-			header_up X-Forwarded-For {remote_host}
-		}
+		reverse_proxy 127.0.0.1:8000
 	}
 
 	handle {

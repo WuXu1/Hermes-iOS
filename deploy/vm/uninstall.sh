@@ -17,6 +17,11 @@ esac
 CADDY_INSTALLED_BY_US=0
 [[ -f /etc/hermes-mobile/.installed-caddy ]] && CADDY_INSTALLED_BY_US=1
 
+if [[ -f /etc/hermes-mobile/.tailscale-serve-configured ]]; then
+  tailscale serve --https=443 off || echo "WARNING: could not turn off tailscale serve; run 'tailscale serve status' and clear it by hand." >&2
+  rm -f /etc/hermes-mobile/.tailscale-serve-configured
+fi
+
 if [[ -x /usr/local/bin/hermes-mobile && -x /opt/hermes-mobile/connector-venv/bin/hermes-mobile ]]; then
   if ! sudo -u hermes /usr/local/bin/hermes-mobile configure-mcp --unregister --profiles default,assistant,coach; then
     echo "WARNING: could not remove the phone-context entries automatically." >&2
@@ -53,5 +58,4 @@ if [[ $KEEP_DATA -eq 0 ]]; then
   if id hermes-relay >/dev/null 2>&1; then userdel hermes-relay || true; fi
 fi
 
-echo "Removed. Now restart the gateway (sudo systemctl restart hermes-gateway), then remove the"
-echo "Azure firewall rules for 80/443 and the DNS label (see deploy/vm/README.md)."
+echo "Removed. Now restart the gateway (sudo systemctl restart hermes-gateway) to drop the phone-context entries."

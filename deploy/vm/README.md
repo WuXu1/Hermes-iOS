@@ -1,9 +1,9 @@
 # Self-hosted VM deployment
 
-Runs the Hermes Mobile relay, connector, an always-on Hermes dashboard API and Caddy (HTTPS) on a VM that already runs Hermes.
+Runs the Hermes Mobile relay, connector, an always-on Hermes dashboard API and Caddy on a VM that already runs Hermes. The phone reaches it over Tailscale; nothing is exposed on the public internet.
 
 ```
-iPhone --HTTPS--> Caddy (443) --> relay (127.0.0.1:8000) <--WebSocket-- connector --> Hermes (+ dashboard API on 127.0.0.1:9119)
+iPhone (Tailscale on) --HTTPS--> tailscale serve (:443, tailnet only) --> Caddy (127.0.0.1:8080) --> relay (127.0.0.1:8000) <--WebSocket-- connector --> Hermes (+ dashboard API on 127.0.0.1:9119)
 ```
 
 ## What gets installed
@@ -13,7 +13,8 @@ iPhone --HTTPS--> Caddy (443) --> relay (127.0.0.1:8000) <--WebSocket-- connecto
 | Relay (user `hermes-relay`, SQLite) | `/opt/hermes-mobile/relay`, venv `/opt/hermes-mobile/relay-venv`, data `/var/lib/hermes-mobile-relay` |
 | Connector (user `hermes`) | `/opt/hermes-mobile/connector`, venv `/opt/hermes-mobile/connector-venv` (built from `connector/uv.lock`), state `/data/.hermes-mobile`; `/usr/local/bin/hermes-mobile` is a wrapper that sets the connector's environment |
 | Dashboard API | service `hermes-dashboard`, loopback port 9119 |
-| Caddy | apt package; `/etc/caddy/Caddyfile` generated from `Caddyfile.template` |
+| Caddy | apt package; `/etc/caddy/Caddyfile` generated from `Caddyfile.template`; listens on 127.0.0.1:8080 only, automatic HTTPS off |
+| Tailscale serve | HTTPS :443 on the VM's `<machine>.<tailnet>.ts.net` name forwarding to Caddy; marker `/etc/hermes-mobile/.tailscale-serve-configured`. Funnel is never enabled |
 | Secrets | `/etc/hermes-mobile/{dashboard,relay,connector}.env` (root, mode 0600, generated once, never printed) |
 | Services | `hermes-dashboard`, `hermes-mobile-relay`, `hermes-mobile-connector` |
 
@@ -21,25 +22,21 @@ Assumes Hermes runs as user `hermes` with `HERMES_HOME=/data/.hermes` and the CL
 
 Caddy only exposes `/v1/*` and returns 404 for connector, host, push, talk, docs and `/internal/*` paths, plus `/v1/device/register` (the relay also refuses it with 403 in production). The relay's own dependencies are installed unlocked (it has no committed lockfile); only the connector is pinned.
 
-## Azure prerequisites
+## Prerequisites
 
-Give the VM's public IP a DNS name and open ports 80 (certificate issuance) and 443:
-
-```bash
-az network public-ip update -g <rg> -n <ip-name> --dns-name <label>
-az network nsg rule create -g <rg> --nsg-name <nsg> -n https-in --priority 310 --access Allow --protocol Tcp --direction Inbound --destination-port-ranges 443
-az network nsg rule create -g <rg> --nsg-name <nsg> -n http-in --priority 311 --access Allow --protocol Tcp --direction Inbound --destination-port-ranges 80
-```
-
-The DNS name is `<label>.<region>.cloudapp.azure.com`.
+- The VM is on your tailnet (`tailscale status` works on it). No inbound firewall rules are needed.
+- In the Tailscale admin console (DNS), MagicDNS and HTTPS certificates are enabled for the tailnet.
+- The Tailscale app is installed on the iPhone, signed into the same tailnet and switched on whenever you use Hermes Mobile.
 
 ## Install
 
 On the VM, with a checkout of this repo:
 
 ```bash
-sudo deploy/vm/install.sh --domain <dns-name> --email <acme-email> --repo <path-to-checkout>
+sudo deploy/vm/install.sh --repo <path-to-checkout>
 ```
+
+The VM's name (`<machine>.<tailnet>.ts.net`) is read from `tailscale status`; pass `--domain <name>` to override. The script then configures `tailscale serve --bg --https=443 http://127.0.0.1:8080`. If `tailscale serve` or Funnel already has a different configuration it stops without changing it. The first HTTPS request may take a few seconds while the certificate is issued.
 
 Safe to rerun; existing secrets are kept.
 
@@ -59,7 +56,7 @@ sudo systemctl restart hermes-gateway
 sudo -u hermes hermes-mobile pair-phone
 ```
 
-In the app choose *Enter Code Manually*, set the relay URL to `https://<dns-name>/v1` and enter the code.
+In the app choose *Enter Code Manually*, make sure Tailscale is on, set the relay URL to `https://<machine>.<tailnet>.ts.net/v1` and enter the code.
 
 ## Revoking a device
 
@@ -76,13 +73,22 @@ The phone must then pair again.
 
 ## Verify
 
-After installing, from any machine, check that the blocked routes are closed (each should print 404):
+From a device on the tailnet (Tailscale on), check the blocked routes are closed and health answers:
 
 ```bash
-for p in device/register hosts/current/revoke connector/setup talk/readiness; do
-  curl -s -o /dev/null -w "$p %{http_code}\n" -X POST https://<dns-name>/v1/$p
+base=https://<machine>.<tailnet>.ts.net
+curl -s -o /dev/null -w "health %{http_code}\n" $base/v1/health            # 200
+for p in v1/hosts/ws v1/device/register v1/hosts/current/revoke v1/connector/setup v1/talk/readiness internal/inbox/create; do
+  curl -s -o /dev/null -w "$p %{http_code}\n" -X POST $base/$p            # each 404
 done
-curl -s -o /dev/null -w "health %{http_code}\n" https://<dns-name>/v1/health   # 200
+```
+
+On the VM, check nothing listens publicly:
+
+```bash
+sudo ss -tlnp | grep -E ':(8080|8000|9119)\b'     # all on 127.0.0.1 only
+sudo ss -tlnp | grep caddy                         # only 127.0.0.1:8080 (and Caddy's admin port on 127.0.0.1:2019); not :80 or :443
+tailscale serve status                             # one tailnet-only HTTPS :443 entry, no Funnel
 ```
 
 ## Logs
@@ -105,18 +111,16 @@ then open http://localhost:9119. The login uses the session token in `/etc/herme
 
 ```bash
 cd <path-to-checkout> && git pull
-sudo deploy/vm/install.sh --domain <dns-name> --email <acme-email> --repo <path-to-checkout>
+sudo deploy/vm/install.sh --repo <path-to-checkout>
 sudo systemctl restart hermes-mobile-relay hermes-mobile-connector
 ```
 
 ## Rollback
 
 ```bash
-sudo deploy/vm/uninstall.sh              # add --keep-data to keep the relay database and connector state
+sudo deploy/vm/uninstall.sh              # add --keep-data to keep the relay database and connector state; also runs `tailscale serve --https=443 off`
 sudo systemctl restart hermes-gateway    # picks up the removed phone-context entries
-az network nsg rule delete -g <rg> --nsg-name <nsg> -n https-in
-az network nsg rule delete -g <rg> --nsg-name <nsg> -n http-in
-az network public-ip update -g <rg> -n <ip-name> --dns-name ""
+tailscale serve status                   # confirm nothing is left
 ```
 
 ## Memory budget

@@ -40,25 +40,30 @@ and skills, from anywhere, without opening anything on the VM except HTTPS.
 ## Architecture
 
 ```
-iPhone app ──HTTPS :443──▶ Caddy ──▶ relay (127.0.0.1:8000, user hermes-relay)
+iPhone app (Tailscale on) ──HTTPS :443──▶ tailscale serve ──▶ Caddy (127.0.0.1:8080)
+                                        ──▶ relay (127.0.0.1:8000, user hermes-relay)
                                         │ WebSocket RPC (loopback)
                                         ▼
                          connector (user hermes) ──HTTP──▶ Hermes dashboard API (127.0.0.1:9119)
                                         └──subprocess──▶ hermes -p <profile> chat …
 ```
 
-Everything except Caddy listens on loopback only. The relay and connector keep
+Everything listens on loopback only; `tailscale serve` is the single entry point and is reachable from the tailnet only. The relay and connector keep
 their existing protocol (pairing, device tokens, WebSocket RPC between relay and
 connector), so the app's networking layer is unchanged.
 
-### Public address and TLS
+### Tailscale address and TLS
 
-- An Azure DNS label on the VM's existing static public IP gives a stable name
-  of the form `<label>.<region>.cloudapp.azure.com`. Free, no third-party DNS.
-- Caddy terminates TLS with an automatic Let's Encrypt certificate.
-- The network security group gains two rules: TCP 443 from anywhere, and TCP 80
-  from anywhere. Port 80 only serves ACME challenges and redirects to HTTPS.
-  The SSH rule (owner's IP only) is unchanged.
+- The VM is already on the owner's tailnet (SSH is Tailscale-only). Its
+  MagicDNS name `<machine>.<tailnet>.ts.net` is the stable address.
+- `tailscale serve` terminates TLS on :443 with a certificate Tailscale issues
+  for that name (tailnet needs MagicDNS and HTTPS certificates enabled) and
+  forwards to Caddy on 127.0.0.1:8080 over plain HTTP. Caddy keeps the route
+  allowlist, trusts 127.0.0.1 as a proxy and has automatic HTTPS off, so it
+  never binds 80 or 443. Funnel is never enabled.
+- No Azure NSG rules, DNS label or public ports are added; nothing is exposed
+  to the internet.
+- Trade-off: the iPhone must have Tailscale switched on to reach the relay.
 
 ### Caddy routing
 
@@ -291,7 +296,8 @@ scanned in the app; the device token is stored in the Keychain.
 2. Before touching the VM: confirm no kanban card is running and no chat is in
    progress; back up configs and `.env` files to
    `/data/backups/pre-mobile-<date>`.
-3. On the VM: DNS label and firewall rules, Caddy, the three services, phone
+3. On the VM: confirm MagicDNS and HTTPS certificates are enabled in the
+   tailnet, then Caddy (loopback), `tailscale serve`, the three services, phone
    context registration in three profiles, one gateway restart.
 4. Simulator end-to-end test, build the unsigned IPA, the owner sideloads and
    pairs.
@@ -300,7 +306,7 @@ scanned in the app; the device token is stored in the Keychain.
 ## Rollback
 
 Stop and disable `caddy`, `hermes-mobile-relay`, `hermes-mobile-connector` and
-`hermes-dashboard`; delete the 80/443 firewall rules; restore the three
+`hermes-dashboard`; run `tailscale serve --https=443 off`; restore the three
 profiles' `config.yaml` from the backup and restart the gateway once. No
 Hermes data (sessions, memory, board, cron) is changed by the app except
 through Hermes's own API, so nothing else needs undoing.

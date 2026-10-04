@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
 # Install the Hermes Mobile relay, connector, always-on dashboard API and Caddy on a VM
 # that already runs Hermes as the `hermes` user (HERMES_HOME=/data/.hermes).
+# The phone reaches the relay over Tailscale: `tailscale serve` (HTTPS :443, tailnet only)
+# forwards to Caddy on 127.0.0.1:8080, which forwards to the relay on 127.0.0.1:8000.
 # Idempotent: safe to rerun after pulling a new version of the repo.
 set -euo pipefail
 
-DOMAIN="" EMAIL="" REPO=""
+DOMAIN="" REPO=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain) DOMAIN="$2"; shift 2 ;;
-    --email) EMAIL="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-[[ -n "$DOMAIN" && -n "$EMAIL" && -n "$REPO" ]] || { echo "usage: install.sh --domain <name> --email <email> --repo <checkout>" >&2; exit 2; }
-[[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "--domain must contain only letters, digits, dots and hyphens" >&2; exit 2; }
-[[ $EMAIL =~ ^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+$ ]] || { echo "--email must look like name@host (no other characters)" >&2; exit 2; }
+[[ -n "$REPO" ]] || { echo "usage: install.sh [--domain <machine>.<tailnet>.ts.net] --repo <checkout>" >&2; exit 2; }
+if [[ -n "$DOMAIN" ]]; then
+  [[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "--domain must contain only letters, digits, dots and hyphens" >&2; exit 2; }
+fi
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 id hermes >/dev/null || { echo "the hermes user is missing" >&2; exit 1; }
 for tool in rsync python3 curl; do
   command -v "$tool" >/dev/null || { echo "missing required tool: $tool (apt-get install $tool)" >&2; exit 1; }
 done
+command -v tailscale >/dev/null || { echo "tailscale is not installed; install it and join the tailnet first" >&2; exit 1; }
+if [[ -z "$DOMAIN" ]]; then
+  DOMAIN=$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print((json.load(sys.stdin).get("Self") or {}).get("DNSName","").rstrip("."))' 2>/dev/null || true)
+  [[ -n "$DOMAIN" ]] || { echo "could not read this machine's Tailscale name; is tailscale up (tailscale status)?" >&2; exit 1; }
+fi
+[[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "the Tailscale name '$DOMAIN' contains unexpected characters" >&2; exit 1; }
+[[ $DOMAIN == *.ts.net ]] || { echo "the Tailscale name '$DOMAIN' does not end in .ts.net; enable MagicDNS for the tailnet (admin console, DNS)" >&2; exit 1; }
 [[ -d "$REPO/relay" && -d "$REPO/connector" && -d "$REPO/deploy/vm" ]] || { echo "--repo is not a Hermes-iOS checkout" >&2; exit 1; }
 
 HERMES_UID=$(id -u hermes)
@@ -101,7 +110,7 @@ if [[ -f /etc/caddy/Caddyfile && ! -f /etc/caddy/Caddyfile.bak-before-hermes-mob
 fi
 CADDY_TMP=$(mktemp /etc/hermes-mobile/Caddyfile.XXXXXX)
 trap 'rm -f "$CADDY_TMP"' EXIT
-sed -e "s#__DOMAIN__#$DOMAIN#g" -e "s#__EMAIL__#$EMAIL#g" "$REPO/deploy/vm/Caddyfile.template" > "$CADDY_TMP"
+cp "$REPO/deploy/vm/Caddyfile.template" "$CADDY_TMP"
 caddy validate --config "$CADDY_TMP" --adapter caddyfile >/dev/null || { echo "generated Caddyfile is invalid; /etc/caddy/Caddyfile left untouched" >&2; exit 1; }
 chmod 0644 "$CADDY_TMP"
 mv -f "$CADDY_TMP" /etc/caddy/Caddyfile
@@ -140,4 +149,36 @@ if [[ ! -f /data/.hermes-mobile/state.json ]]; then
 fi
 systemctl enable --now hermes-mobile-connector
 
-echo "== done. Next: register phone context (needs a gateway restart) and pair a phone; see deploy/vm/README.md"
+echo "== tailscale serve (tailnet-only HTTPS -> Caddy on 127.0.0.1:8080)"
+# Our config is exactly: HTTPS :443 on this machine's name, proxying to Caddy, no Funnel.
+SERVE_CHECK='
+import json, sys
+dom, want = sys.argv[1], "http://127.0.0.1:8080"
+cfg = json.load(sys.stdin) or {}
+if not cfg:
+    print("empty"); sys.exit(0)
+web = cfg.get("Web") or {}
+ok = (set(cfg) <= {"TCP", "Web"}
+      and not cfg.get("AllowFunnel")
+      and set(cfg.get("TCP", {})) == {"443"}
+      and set(web) == {dom + ":443"}
+      and set(web[dom + ":443"].get("Handlers", {})) == {"/"}
+      and web[dom + ":443"]["Handlers"]["/"].get("Proxy") == want)
+print("ours" if ok else "foreign")
+'
+SERVE_STATE=$(tailscale serve status --json 2>/dev/null | python3 -c "$SERVE_CHECK" "$DOMAIN" 2>/dev/null || echo unreadable)
+case "$SERVE_STATE" in
+  empty|ours) ;;
+  *) echo "tailscale serve/funnel already has a configuration that is not Hermes Mobile's ($SERVE_STATE); not overwriting it." >&2
+     echo "Review it with 'tailscale serve status', then remove it or add the route by hand: tailscale serve --bg --https=443 http://127.0.0.1:8080" >&2
+     exit 1 ;;
+esac
+if [[ $SERVE_STATE == empty ]]; then
+  tailscale serve --bg --https=443 http://127.0.0.1:8080
+fi
+touch /etc/hermes-mobile/.tailscale-serve-configured
+
+echo "== done."
+echo "Tailnet requirements: MagicDNS and HTTPS certificates must be enabled (Tailscale admin console, DNS)."
+echo "The first HTTPS request to https://$DOMAIN may take a few seconds while the certificate is issued."
+echo "Next: register phone context (needs a gateway restart) and pair a phone; see deploy/vm/README.md"
