@@ -30,6 +30,14 @@ print((d.get("Self") or {}).get("DNSName", "").rstrip("."))
 ' 2>/dev/null || true)
 [[ -n "$DOMAIN" ]] || { echo "tailscale is not Running, or HTTPS certificates are not enabled: enable MagicDNS + HTTPS certificates in the Tailscale admin console (DNS) and check 'tailscale status'" >&2; exit 1; }
 [[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "the Tailscale name '$DOMAIN' contains unexpected characters" >&2; exit 1; }
+# Refuse to start if another program already listens on one of our loopback ports
+# (9119 is left alone: Hermes Desktop's backend uses it). A rerun is fine: then our own unit owns the port.
+for pair in 8000:hermes-mobile-relay 8080:caddy 9120:hermes-dashboard; do
+  port=${pair%%:*} unit=${pair#*:}
+  if ss -Hltn "sport = :$port" | grep -q . && ! systemctl is-active --quiet "$unit"; then
+    echo "port $port is already in use by another program; free it before installing" >&2; exit 1
+  fi
+done
 [[ $DOMAIN == *.ts.net ]] || { echo "the Tailscale name '$DOMAIN' does not end in .ts.net; enable MagicDNS for the tailnet (admin console, DNS)" >&2; exit 1; }
 [[ -d "$REPO/relay" && -d "$REPO/connector" && -d "$REPO/deploy/vm" ]] || { echo "--repo is not a Hermes-iOS checkout" >&2; exit 1; }
 
@@ -126,7 +134,7 @@ export HERMES_MOBILE_CONNECTOR_HOME=/data/.hermes-mobile
 export HERMES_MOBILE_RELAY_INTERNAL_URL=http://127.0.0.1:8000/v1
 export HERMES_COMMAND=/home/hermes/.local/bin/hermes
 export HERMES_WORKDIR=/data/workspace
-export HERMES_DASHBOARD_URL=http://127.0.0.1:9119
+export HERMES_DASHBOARD_URL=http://127.0.0.1:9120
 export HERMES_MOBILE_MCP_PROFILES=default,assistant,coach
 exec /opt/hermes-mobile/connector-venv/bin/hermes-mobile "$@"
 WRAPEOF

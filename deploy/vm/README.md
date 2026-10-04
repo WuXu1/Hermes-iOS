@@ -3,7 +3,7 @@
 Runs the Hermes Mobile relay, connector, an always-on Hermes dashboard API and Caddy on a VM that already runs Hermes. The phone reaches it over Tailscale; nothing is exposed on the public internet.
 
 ```
-iPhone (Tailscale on) --HTTPS--> tailscale serve (:443, tailnet only) --> Caddy (127.0.0.1:8080) --> relay (127.0.0.1:8000) <--WebSocket-- connector --> Hermes (+ dashboard API on 127.0.0.1:9119)
+iPhone (Tailscale on) --HTTPS--> tailscale serve (:443, tailnet only) --> Caddy (127.0.0.1:8080) --> relay (127.0.0.1:8000) <--WebSocket-- connector --> Hermes (+ dashboard API on 127.0.0.1:9120)
 ```
 
 ## What gets installed
@@ -12,7 +12,7 @@ iPhone (Tailscale on) --HTTPS--> tailscale serve (:443, tailnet only) --> Caddy 
 |---|---|
 | Relay (user `hermes-relay`, SQLite) | `/opt/hermes-mobile/relay`, venv `/opt/hermes-mobile/relay-venv`, data `/var/lib/hermes-mobile-relay` |
 | Connector (user `hermes`) | `/opt/hermes-mobile/connector`, venv `/opt/hermes-mobile/connector-venv` (built from `connector/uv.lock`), state `/data/.hermes-mobile`; `/usr/local/bin/hermes-mobile` is a wrapper that sets the connector's environment |
-| Dashboard API | service `hermes-dashboard`, loopback port 9119 |
+| Dashboard API | service `hermes-dashboard`, loopback port 9120 (not 9119, which a Hermes Desktop backend may already use) |
 | Caddy | apt package; `/etc/caddy/Caddyfile` generated from `Caddyfile.template`; listens on 127.0.0.1:8080 only, automatic HTTPS off |
 | Tailscale serve | HTTPS :443 on the VM's `<machine>.<tailnet>.ts.net` name forwarding to Caddy; marker `/etc/hermes-mobile/.tailscale-serve-configured`. Funnel is never enabled |
 | Secrets | `/etc/hermes-mobile/{dashboard,relay,connector}.env` (root, mode 0600, generated once, never printed) |
@@ -87,7 +87,7 @@ done
 On the VM, check nothing listens publicly:
 
 ```bash
-sudo ss -tlnp | grep -E ':(8080|8000|9119)\b'     # all on 127.0.0.1 only
+sudo ss -tlnp | grep -E ':(8080|8000|9120)\b'     # all on 127.0.0.1 only
 sudo ss -tlnp | grep caddy                         # only 127.0.0.1:8080 (and Caddy's admin port on 127.0.0.1:2019); not :80 or :443
 tailscale serve status                             # one tailnet-only HTTPS :443 entry, no Funnel
 ```
@@ -103,10 +103,10 @@ journalctl -u hermes-mobile-relay -u hermes-mobile-connector -u hermes-dashboard
 The dashboard API listens on loopback only. To open it in a browser:
 
 ```bash
-ssh -L 9119:127.0.0.1:9119 <admin>@<vm>
+ssh -L 9120:127.0.0.1:9120 <admin>@<vm>
 ```
 
-then open http://localhost:9119. The login uses the session token in `/etc/hermes-mobile/dashboard.env` (`HERMES_DASHBOARD_SESSION_TOKEN`).
+then open http://localhost:9120. The login uses the session token in `/etc/hermes-mobile/dashboard.env` (`HERMES_DASHBOARD_SESSION_TOKEN`).
 
 ## Updating
 

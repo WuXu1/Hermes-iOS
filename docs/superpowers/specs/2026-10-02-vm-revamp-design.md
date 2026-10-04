@@ -44,7 +44,7 @@ iPhone app (Tailscale on) ──HTTPS :443──▶ tailscale serve ──▶ Ca
                                         ──▶ relay (127.0.0.1:8000, user hermes-relay)
                                         │ WebSocket RPC (loopback)
                                         ▼
-                         connector (user hermes) ──HTTP──▶ Hermes dashboard API (127.0.0.1:9119)
+                         connector (user hermes) ──HTTP──▶ Hermes dashboard API (127.0.0.1:9120)
                                         └──subprocess──▶ hermes -p <profile> chat …
 ```
 
@@ -88,7 +88,7 @@ Three new systemd units, alongside the existing `hermes-gateway`:
 
 | Unit | User | Listens | What it runs |
 |---|---|---|---|
-| `hermes-dashboard` | `hermes` | 127.0.0.1:9119 | `hermes dashboard --host 127.0.0.1 --port 9119 --no-open --skip-build`, always on, with `HERMES_DASHBOARD_SESSION_TOKEN` |
+| `hermes-dashboard` | `hermes` | 127.0.0.1:9120 | `hermes dashboard --host 127.0.0.1 --port 9120 --no-open --skip-build`, always on, with `HERMES_DASHBOARD_SESSION_TOKEN` |
 | `hermes-mobile-relay` | `hermes-relay` | 127.0.0.1:8000 | the relay (`relay/`), SQLite in `/var/lib/hermes-mobile-relay` |
 | `hermes-mobile-connector` | `hermes` | none (dials the relay) | the connector (`connector/`), state in `/data/.hermes-mobile` |
 
@@ -99,7 +99,7 @@ Three new systemd units, alongside the existing `hermes-gateway`:
   token) are generated on the VM into root-owned `EnvironmentFile`s
   (`/etc/hermes-mobile/*.env`, mode 0600) and never committed.
 - Because the dashboard is now always on, the owner's dashboard tunnel becomes
-  `ssh -L 9119:127.0.0.1:9119 <vm>` with nothing started on demand.
+  `ssh -L 9120:127.0.0.1:9120 <vm>` with nothing started on demand.
 - Expected extra memory: about 0.5 GB (dashboard ~0.35 GB, relay and connector
   ~0.1 GB, Caddy ~0.03 GB). Each app message also starts a short-lived
   `hermes chat` process, as Telegram turns do.

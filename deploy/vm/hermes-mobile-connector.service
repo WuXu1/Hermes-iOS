@@ -16,7 +16,7 @@ Environment=HERMES_MOBILE_CONNECTOR_HOME=/data/.hermes-mobile
 Environment=HERMES_COMMAND=/home/hermes/.local/bin/hermes
 Environment=HERMES_WORKDIR=/data/workspace
 Environment=HERMES_MOBILE_RELAY_INTERNAL_URL=http://127.0.0.1:8000/v1
-Environment=HERMES_DASHBOARD_URL=http://127.0.0.1:9119
+Environment=HERMES_DASHBOARD_URL=http://127.0.0.1:9120
 Environment=HERMES_MOBILE_MCP_PROFILES=default,assistant,coach
 Environment=XDG_RUNTIME_DIR=/run/user/1001
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus

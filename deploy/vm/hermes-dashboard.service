@@ -13,7 +13,7 @@ EnvironmentFile=/etc/hermes-mobile/dashboard.env
 Environment=HOME=/home/hermes
 Environment=HERMES_HOME=/data/.hermes
 Environment=PATH=/home/hermes/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/home/hermes/.local/bin/hermes dashboard --host 127.0.0.1 --port 9119 --no-open --skip-build
+ExecStart=/home/hermes/.local/bin/hermes dashboard --host 127.0.0.1 --port 9120 --no-open --skip-build
 Restart=always
 RestartSec=10
 NoNewPrivileges=true
