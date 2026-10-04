@@ -6,7 +6,7 @@ __DOMAIN__ {
 	encode gzip
 
 	@blocked {
-		path /internal/* /v1/connector/* /v1/hosts/enrollment-codes /v1/hosts/ws /v1/hosts/redeem /v1/push/* /v1/talk/* /v1/pairing/redeem /docs /redoc /openapi.json
+		path /internal/* /v1/connector/* /v1/hosts/enrollment-codes /v1/hosts/ws /v1/hosts/redeem /v1/push/* /v1/talk/* /v1/pairing/redeem /v1/device/register /v1/hosts/current/revoke /docs /redoc /openapi.json
 	}
 	handle @blocked {
 		respond 404

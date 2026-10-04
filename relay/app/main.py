@@ -774,6 +774,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db: Session = Depends(get_db),
         request_settings: Settings = Depends(get_settings),
     ) -> dict:
+        # Unauthenticated token minting is a development convenience only; real devices pair via a code.
+        if request_settings.environment == "production":
+            raise HTTPException(status_code=403, detail="Device registration is disabled; pair with a code.")
         user = ensure_default_user(db, request_settings)
         device = upsert_device(
             db,
@@ -931,6 +934,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> JSONResponse:
         """Forward an allowlisted Hermes dashboard API call to the paired host's connector."""
         raw_body = await request.body()
+        try:
+            body = json.loads(raw_body) if raw_body else None
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Request body must be valid JSON.")
         result = await call_connector(
             auth.user.id,
             "hermes.api",
@@ -938,7 +945,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "method": request.method,
                 "path": f"/api/{path}",
                 "query": dict(request.query_params),
-                "body": json.loads(raw_body) if raw_body else None,
+                "body": body,
             },
         )
         status_code = int(result.get("status") or 502)

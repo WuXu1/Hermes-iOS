@@ -9,11 +9,13 @@ from app.main import create_app
 
 def build_client(tmp_path, **overrides):
     settings = Settings(
-        environment="test",
-        public_base_url="http://testserver/v1",
-        database_url=f"sqlite:///{tmp_path / 'relay.db'}",
-        internal_api_key="test-internal-key",
-        **overrides,
+        **{
+            "environment": "test",
+            "public_base_url": "http://testserver/v1",
+            "database_url": f"sqlite:///{tmp_path / 'relay.db'}",
+            "internal_api_key": "test-internal-key",
+            **overrides,
+        }
     )
     app = create_app(settings)
     return TestClient(app)
@@ -323,3 +325,30 @@ def test_chat_create_message_is_idempotent_for_client_message_id(tmp_path):
         )
         assert updated_conversation.status_code == 200
         assert len(updated_conversation.json()["data"]["conversation"]["messages"]) == 2
+
+
+def test_device_register_is_forbidden_in_production(tmp_path):
+    with build_client(tmp_path, environment="production") as client:
+        response = client.post(
+            "/v1/device/register",
+            json={
+                "device": {
+                    "platform": "ios",
+                    "deviceName": "Test iPhone",
+                    "appVersion": "1.0.0",
+                    "buildNumber": "1",
+                    "bundleId": "io.hermesmobile.HermesMobile",
+                    "installationId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                    "deviceModel": "iPhone17,2",
+                    "systemVersion": "26.4",
+                },
+                "client": {"environment": "development"},
+            },
+        )
+        assert response.status_code == 403
+
+
+def test_device_register_works_in_development(tmp_path):
+    with build_client(tmp_path, environment="development") as client:
+        data = register_device(client)
+        assert data["auth"]["accessToken"]
