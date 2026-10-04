@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// App-wide transient confirmations ("Assigned to Researcher", "Saved").
+/// App-wide transient confirmations ("Assigned to Tutor", "Saved").
 @MainActor
 @Observable
 final class ToastCenter {

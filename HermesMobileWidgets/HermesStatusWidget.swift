@@ -77,7 +77,7 @@ private struct HermesStatusView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let nextAt = entry.data.nextAutomationAt, nextAutomationText != nil {
+            if let nextAt = entry.data.nextAutomationAt, nextAutomationText != nil, nextAt > entry.date {
                 Text(nextAt, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)

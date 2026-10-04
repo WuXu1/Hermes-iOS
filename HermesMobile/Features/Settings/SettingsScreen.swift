@@ -59,6 +59,7 @@ struct SettingsScreen: View {
                     dismiss()
                 }
             }
+            .accessibilityIdentifier("settings.unpair.confirm")
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You'll need a new pairing code from your server to reconnect.")
@@ -328,8 +329,9 @@ struct SettingsScreen: View {
             } label: {
                 HStack(spacing: Design.Spacing.sm) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
-                    Text("Unpair this iPhone")
+                    Text(pairingStore.isWorking ? "Unpairing…" : "Unpair this iPhone")
                     Spacer()
+                    if pairingStore.isWorking { ProgressView() }
                 }
                 .font(Design.Typography.callout)
                 .frame(minHeight: Design.Size.minTapTarget)

@@ -102,7 +102,7 @@ final class TeamStore {
         board.allTasks.first { $0.id == id }
     }
 
-    /// Blocked work, and review items no reviewer will pick up, wait on the user.
+    /// Blocked work, and review items with no assignee, wait on the user.
     private static func needsUser(_ task: KanbanTask) -> Bool {
         task.status == .blocked || (task.status == .review && (task.assignee ?? "").isEmpty)
     }
@@ -154,20 +154,10 @@ final class TeamStore {
 
     // MARK: Actions
 
-    /// Creates a task; with `reviewAfter`, also a reviewer task that waits on it.
+    /// Creates a task and refreshes the board.
     @discardableResult
-    func create(_ draft: KanbanTaskDraft, reviewAfter: Bool) async throws -> KanbanTask {
+    func create(_ draft: KanbanTaskDraft) async throws -> KanbanTask {
         let task = try await api.createTask(draft)
-        if reviewAfter {
-            try await api.createTask(
-                KanbanTaskDraft(
-                    title: "Review: \(draft.title)",
-                    body: "Check the work from task \(task.id) (\(draft.title)) before it's used. Verify it instead of trusting the summary.",
-                    assignee: "reviewer",
-                    parents: [task.id]
-                )
-            )
-        }
         await refresh()
         return task
     }

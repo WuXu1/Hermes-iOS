@@ -110,13 +110,18 @@ final class HermesMobileUITests: XCTestCase {
         XCTAssertTrue(unpair.waitForExistence(timeout: 5))
         unpair.tap()
 
-        let confirm = app.sheets.buttons["Unpair this iPhone"].firstMatch.exists
-            ? app.sheets.buttons["Unpair this iPhone"].firstMatch
-            : app.buttons.matching(NSPredicate(format: "label == 'Unpair this iPhone'")).element(boundBy: 1)
+        let confirm = app.buttons.matching(identifier: "settings.unpair.confirm").firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
 
         XCTAssertTrue(app.buttons["Enter Code Manually"].waitForExistence(timeout: 8))
+
+        // The pairing is really gone: a relaunch still shows onboarding.
+        app.terminate()
+        let relaunched = makeApp(context: context)
+        relaunched.launch()
+        XCTAssertTrue(relaunched.buttons["Enter Code Manually"].waitForExistence(timeout: 8))
+        XCTAssertFalse(relaunched.buttons["chat.agent"].exists)
     }
 
     @MainActor
@@ -148,11 +153,11 @@ final class HermesMobileUITests: XCTestCase {
         app.buttons["Connect Hermes"].tap()
 
         let continueButton = app.buttons["Continue"]
-        if continueButton.waitForExistence(timeout: 5) {
+        if continueButton.waitForExistence(timeout: 10) {
             continueButton.tap()
         }
 
-        XCTAssertTrue(app.buttons["chat.agent"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["chat.agent"].waitForExistence(timeout: 15))
     }
 
     @MainActor

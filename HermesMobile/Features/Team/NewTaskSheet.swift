@@ -13,7 +13,6 @@ struct NewTaskSheet: View {
     @State private var title = ""
     @State private var details = ""
     @State private var assignee: String?
-    @State private var reviewAfter = false
     @State private var isSubmitting = false
     @FocusState private var focusedField: Field?
 
@@ -53,21 +52,6 @@ struct NewTaskSheet: View {
                                 roleCard(profile)
                             }
                         }
-                    }
-
-                    if assignee != "reviewer" {
-                        Toggle(isOn: $reviewAfter) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Have the reviewer check it")
-                                    .font(.subheadline.weight(.semibold))
-                                Text("Adds a review task that starts when this one is done.")
-                                    .font(.caption)
-                                    .foregroundStyle(Design.Colors.textTertiary)
-                            }
-                        }
-                        .tint(RoleStyle.forProfile("reviewer").color)
-                        .padding(Design.Spacing.md)
-                        .cardSurface()
                     }
                 }
                 .padding(Design.Spacing.md)
@@ -161,7 +145,7 @@ struct NewTaskSheet: View {
         Task {
             defer { isSubmitting = false }
             do {
-                let task = try await store.create(draft, reviewAfter: reviewAfter && assignee != "reviewer")
+                let task = try await store.create(draft)
                 dismiss()
                 let router = router
                 toasts.show("Assigned to \(agents.label(for: assignee))", systemImage: "person.badge.plus", actionTitle: "View") {

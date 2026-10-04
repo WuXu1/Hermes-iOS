@@ -28,11 +28,11 @@ struct TeamStoreTests {
         let (store, _) = makeStore()
         await store.refresh()
 
-        store.selectedRole = "operator"
+        store.selectedRole = "coach"
 
         #expect(store.sections.map(\.kind) == [.needsYou, .done])
         let tasks = store.sections.flatMap(\.tasks)
-        #expect(tasks.allSatisfy { $0.assignee == "operator" })
+        #expect(tasks.allSatisfy { $0.assignee == "coach" })
         // Badge counts ignore the filter.
         #expect(store.workingCount == 2)
     }
@@ -40,26 +40,23 @@ struct TeamStoreTests {
     @Test func rolesListDefaultFirstThenKnownOrder() async {
         let (store, _) = makeStore()
         await store.refresh()
-        #expect(store.roles.map(\.name) == ["default", "researcher", "operator", "coder", "reviewer"])
-        #expect(store.activity(for: "researcher").isWorking)
-        #expect(store.activity(for: "researcher").openCount == 2)
-        #expect(!store.activity(for: "reviewer").isWorking)
+        #expect(store.roles.map(\.name) == ["default", "developer", "tutor", "assistant", "coach"])
+        #expect(store.activity(for: "assistant").isWorking)
+        #expect(store.activity(for: "assistant").openCount == 2)
+        #expect(!store.activity(for: "tutor").isWorking)
     }
 
-    @Test func createWithReviewAddsLinkedReviewerTask() async throws {
+    @Test func createAddsTaskForAssignee() async throws {
         let (store, _) = makeStore()
         await store.refresh()
 
         let task = try await store.create(
-            KanbanTaskDraft(title: "Draft a packing list", body: "Lisbon, 3 days", assignee: "researcher"),
-            reviewAfter: true
+            KanbanTaskDraft(title: "Draft a packing list", body: "Lisbon, 3 days", assignee: "assistant")
         )
 
         let all = store.board.allTasks
-        #expect(all.contains { $0.id == task.id && $0.status == .ready })
-        let review = try #require(all.first { $0.title == "Review: Draft a packing list" })
-        #expect(review.assignee == "reviewer")
-        #expect(review.status == .todo)
+        #expect(all.contains { $0.id == task.id && $0.status == .ready && $0.assignee == "assistant" })
+        #expect(!all.contains { $0.title.hasPrefix("Review:") })
     }
 
     @Test func replyUnblocksBlockedTask() async throws {

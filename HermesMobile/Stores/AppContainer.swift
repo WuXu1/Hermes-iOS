@@ -39,7 +39,8 @@ final class AppContainer {
         workspaceTransport: (any WorkspaceTransport)? = nil,
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
-        notificationService: (any NotificationServiceProtocol)? = nil
+        notificationService: (any NotificationServiceProtocol)? = nil,
+        defaults: UserDefaults = .standard
     ) {
         self.sessionStore = sessionStore
         self.pairingStore = pairingStore
@@ -50,7 +51,7 @@ final class AppContainer {
         let workspaceAPI = HermesWorkspaceAPI(transport: workspaceTransport ?? MockWorkspaceTransport(mode: .offline))
         self.workspaceAPI = workspaceAPI
         teamStore = TeamStore(api: workspaceAPI)
-        agentStore = AgentStore(api: workspaceAPI)
+        agentStore = AgentStore(api: workspaceAPI, defaults: defaults)
         automationsStore = AutomationsStore(api: workspaceAPI)
         libraryStore = LibraryStore(api: workspaceAPI)
         conversationsStore = ConversationsStore(api: workspaceAPI)
@@ -224,10 +225,12 @@ final class AppContainer {
                 ),
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
-            notificationService: notificationService
+            notificationService: notificationService,
+            defaults: resolvedDefaults
         )
 
         hermesClient.setActiveProfile(container.agentStore.selected)
+        container.agentStore.onReset = { hermesClient.setActiveProfile(RoleStyle.defaultProfileName) }
         container.agentStore.onSelectionChanged = Self.agentSwitchHandler(
             setProfile: { hermesClient.setActiveProfile($0) },
             chatStore: container.chatStore,
@@ -597,6 +600,8 @@ final class AppContainer {
     /// Snapshots current app state into the App Group shared container
     /// so Home Screen widgets can display it.
     func updateWidgetData() {
+        // Late refreshes can land after an unpair; never repopulate the widget then.
+        guard pairingStore.isPaired else { return }
         let lastMessage = chatStore.conversation?.messages.last
         let previous = SharedWidgetDataStore.read()
         var data = previous
@@ -634,6 +639,7 @@ final class AppContainer {
         chatStore.reset()
         hostStore.reset()
         teamStore.reset()
+        agentStore.reset()
         automationsStore.reset()
         libraryStore.reset()
         conversationsStore.reset()

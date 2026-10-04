@@ -582,7 +582,7 @@ struct ChatScreen: View {
         }
         Task {
             do {
-                let task = try await teamStore.create(draft, reviewAfter: false)
+                let task = try await teamStore.create(draft)
                 let router = router
                 toasts.show(
                     "Assigned to \(agentStore.label(for: role))",

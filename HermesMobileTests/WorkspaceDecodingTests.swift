@@ -22,7 +22,7 @@ struct WorkspaceDecodingTests {
         let board = try fixture("board", as: KanbanBoard.self)
         #expect(board.columns.map(\.name).contains("blocked"))
         let blocked = try #require(board.allTasks.first { $0.status == .blocked })
-        #expect(blocked.assignee == "operator")
+        #expect(blocked.assignee == "coach")
         #expect(blocked.headline?.hasPrefix("Needs you") == true)
         #expect(blocked.createdAt != nil)
     }
@@ -38,8 +38,8 @@ struct WorkspaceDecodingTests {
         #expect(detail.attachments.map(\.filename) == ["clean_bank_csv.py", "sample-output.md"])
         let allText = detail.attachments.allSatisfy(\.isText)
         #expect(allText)
-        #expect(detail.runs.first?.profile == "coder")
-        #expect(detail.events.first?.payload?["assignee"]?.stringValue == "coder")
+        #expect(detail.runs.first?.profile == "developer")
+        #expect(detail.events.first?.payload?["assignee"]?.stringValue == "developer")
     }
 
     @Test func detailToleratesMissingCollections() throws {
@@ -136,7 +136,7 @@ struct MockWorkspaceTransportTests {
         let transport = MockWorkspaceTransport()
         let api = HermesWorkspaceAPI(transport: transport)
 
-        let task = try await api.createTask(KanbanTaskDraft(title: "Find a dentist", body: "Near me", assignee: "researcher"))
+        let task = try await api.createTask(KanbanTaskDraft(title: "Find a dentist", body: "Near me", assignee: "assistant"))
         let board = try await api.board()
 
         let isOnBoard = board.allTasks.contains { $0.id == task.id && $0.status == .ready }

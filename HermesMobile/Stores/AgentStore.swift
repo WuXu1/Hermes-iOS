@@ -9,6 +9,7 @@ final class AgentStore {
     private(set) var profiles: [HermesProfile] = []
     private(set) var selected: String
     var onSelectionChanged: (@MainActor (String) async -> Void)?
+    var onReset: (@MainActor () -> Void)?
     var onProfilesChanged: (@MainActor () -> Void)?
 
     private var selectionTask: Task<Void, Never>?
@@ -55,6 +56,15 @@ final class AgentStore {
         if !loaded.contains(where: { $0.name == selected }) {
             select(RoleStyle.defaultProfileName)
         }
+    }
+
+    /// Back to a fresh pairing: no profiles, the default agent selected.
+    func reset() {
+        selectionTask?.cancel()
+        profiles = []
+        selected = RoleStyle.defaultProfileName
+        defaults.removeObject(forKey: Self.selectionKey)
+        onReset?()
     }
 
     func select(_ name: String) {
