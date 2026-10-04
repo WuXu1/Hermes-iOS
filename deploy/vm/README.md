@@ -37,7 +37,7 @@ On the VM, with a checkout of this repo:
 sudo deploy/vm/install.sh --repo <path-to-checkout>
 ```
 
-The VM's name (`<machine>.<tailnet>.ts.net`) is read from `tailscale status`. The script requires Tailscale to be running with HTTPS certificates enabled, then then configures `tailscale serve --bg --https=443 http://127.0.0.1:8080`. If `tailscale serve` or Funnel already has a different configuration it stops without changing it. The first HTTPS request may take a few seconds while the certificate is issued.
+The VM's name (`<machine>.<tailnet>.ts.net`) is read from `tailscale status`. The script requires Tailscale to be running with HTTPS certificates enabled, then configures `tailscale serve --bg --https=443 http://127.0.0.1:8080`. If `tailscale serve` or Funnel already has a different configuration it stops without changing it. The first HTTPS request may take a few seconds while the certificate is issued.
 
 Safe to rerun; existing secrets are kept.
 
