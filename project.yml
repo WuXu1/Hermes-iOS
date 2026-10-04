@@ -72,7 +72,7 @@ targets:
         NSHealthUpdateUsageDescription: "Hermes does not write health data, but this permission is required by the system."
         NSCameraUsageDescription: "Hermes uses the camera to capture photos and documents for analysis."
         NSPhotoLibraryUsageDescription: "Hermes accesses your photo library to help organize and search your photos."
-        NSMicrophoneUsageDescription: "Hermes uses the microphone for voice conversations in Talk Mode."
+        NSMicrophoneUsageDescription: "Record voice notes for your Hermes agents."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
         NSSupportsLiveActivities: true

@@ -117,6 +117,7 @@ export HERMES_MOBILE_RELAY_INTERNAL_URL=http://127.0.0.1:8000/v1
 export HERMES_COMMAND=/home/hermes/.local/bin/hermes
 export HERMES_WORKDIR=/data/workspace
 export HERMES_DASHBOARD_URL=http://127.0.0.1:9119
+export HERMES_MOBILE_MCP_PROFILES=default,assistant,coach
 exec /opt/hermes-mobile/connector-venv/bin/hermes-mobile "$@"
 WRAPEOF
 chmod 0755 /usr/local/bin/hermes-mobile
