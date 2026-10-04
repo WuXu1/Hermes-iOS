@@ -8,7 +8,6 @@ enum PermissionType: String, Codable, CaseIterable, Identifiable, Hashable, Send
     case camera
     case photos
     case motion
-    case speechRecognition
 
     var id: String { rawValue }
 
@@ -21,7 +20,6 @@ enum PermissionType: String, Codable, CaseIterable, Identifiable, Hashable, Send
         case .camera: "Camera"
         case .photos: "Photos"
         case .motion: "Motion & Activity"
-        case .speechRecognition: "Speech Recognition"
         }
     }
 
@@ -34,7 +32,6 @@ enum PermissionType: String, Codable, CaseIterable, Identifiable, Hashable, Send
         case .camera: "camera.fill"
         case .photos: "photo.fill"
         case .motion: "figure.walk"
-        case .speechRecognition: "waveform"
         }
     }
 
@@ -47,7 +44,6 @@ enum PermissionType: String, Codable, CaseIterable, Identifiable, Hashable, Send
         case .camera: .purple
         case .photos: .green
         case .motion: .teal
-        case .speechRecognition: .cyan
         }
     }
 
@@ -60,18 +56,16 @@ enum PermissionType: String, Codable, CaseIterable, Identifiable, Hashable, Send
         case .notifications:
             "Receive timely reminders, task updates, and important alerts from Hermes."
         case .microphone:
-            "Voice conversations with Hermes in Talk Mode."
+            "Record voice notes, which Hermes transcribes on your server."
         case .camera:
             "Capture photos and documents for Hermes to analyze, annotate, or organize."
         case .photos:
             "Access your photo library to help organize, search, and create albums based on your preferences."
         case .motion:
             "Hermes uses motion data to understand your current activity for contextual awareness."
-        case .speechRecognition:
-            "On-device speech recognition for dictation in the chat composer."
         }
     }
 
-    /// Permissions shown during onboarding. Camera, Photos, and Speech Recognition are deferred to Settings.
+    /// Permissions shown during onboarding. Camera and Photos are deferred to Settings.
     static let onboardingPermissions: [PermissionType] = [.location, .notifications, .health, .microphone, .motion]
 }

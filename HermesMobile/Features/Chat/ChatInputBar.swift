@@ -197,7 +197,10 @@ struct ChatInputBar: View {
         }
         .onDisappear { recorder.cancel() }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { recorder.cancel() }
+            guard phase != .active else { return }
+            let wasRecording = recorder.isRecording
+            recorder.cancel()
+            if wasRecording { toasts.show("Voice note discarded", systemImage: "mic.slash.fill") }
         }
     }
 

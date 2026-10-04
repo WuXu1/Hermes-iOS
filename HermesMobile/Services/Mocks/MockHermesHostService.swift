@@ -19,16 +19,4 @@ final class MockHermesHostService: HermesHostServiceProtocol {
     func fetchCurrentHost(accessToken: String?) async throws -> HermesHostStatus? {
         currentHost
     }
-
-    func createEnrollmentCode(accessToken: String?) async throws -> HostEnrollmentCode {
-        HostEnrollmentCode(
-            setupCode: "HC1:mock-host-setup-code",
-            expiresAt: .now.addingTimeInterval(900),
-            relayHost: "relay.example.test"
-        )
-    }
-
-    func revokeCurrentHost(accessToken: String?) async throws {
-        currentHost = nil
-    }
 }

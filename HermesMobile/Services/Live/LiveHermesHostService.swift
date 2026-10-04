@@ -2,14 +2,6 @@ import Foundation
 
 @MainActor
 final class LiveHermesHostService: HermesHostServiceProtocol {
-    private struct EmptyBody: Encodable {}
-
-    private struct EnrollmentResponse: Decodable {
-        let setupCode: String
-        let expiresAt: Date?
-        let relayHost: String
-    }
-
     private struct CurrentHostResponse: Decodable {
         let host: RelayHost?
     }
@@ -50,31 +42,6 @@ final class LiveHermesHostService: HermesHostServiceProtocol {
         return mapHost(host)
     }
 
-    func createEnrollmentCode(accessToken: String?) async throws -> HostEnrollmentCode {
-        let response: EnrollmentResponse = try await performAuthorizedRequest(initialAccessToken: accessToken) { token in
-            try await self.apiClient.post(
-                path: "hosts/enrollment-codes",
-                body: EmptyBody(),
-                accessToken: token
-            )
-        }
-        return HostEnrollmentCode(
-            setupCode: response.setupCode,
-            expiresAt: response.expiresAt,
-            relayHost: response.relayHost
-        )
-    }
-
-    func revokeCurrentHost(accessToken: String?) async throws {
-        let _: EmptyResponse = try await performAuthorizedRequest(initialAccessToken: accessToken) { token in
-            try await self.apiClient.post(
-                path: "hosts/current/revoke",
-                body: EmptyBody(),
-                accessToken: token
-            )
-        }
-    }
-
     private func mapHost(_ host: RelayHost) -> HermesHostStatus {
         HermesHostStatus(
             id: host.id,
@@ -105,5 +72,3 @@ final class LiveHermesHostService: HermesHostServiceProtocol {
         }
     }
 }
-
-private struct EmptyResponse: Decodable {}

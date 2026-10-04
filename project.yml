@@ -75,7 +75,6 @@ targets:
         NSMicrophoneUsageDescription: "Hermes uses the microphone for voice conversations in Talk Mode."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
-        NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         # Allow cleartext HTTP to local-network addresses (raw IPv4/IPv6 and
@@ -88,7 +87,6 @@ targets:
           - processing
           - location
           - remote-notification
-          - audio
 
   HermesMobileWidgets:
     type: app-extension

@@ -41,8 +41,6 @@
 	<string>Hermes uses motion data to understand your current activity for contextual awareness.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Hermes accesses your photo library to help organize and search your photos.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Hermes uses speech recognition for voice commands and local transcription.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
@@ -52,7 +50,6 @@
 		<string>processing</string>
 		<string>location</string>
 		<string>remote-notification</string>
-		<string>audio</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

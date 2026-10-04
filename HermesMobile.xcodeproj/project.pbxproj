@@ -98,7 +98,6 @@
 		85AD98E44891203305628F5C /* AppTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 913ED4F6E33142A78F4B8FAA /* AppTemplateTests.swift */; };
 		8B995CDE1CECBA332A9984BD /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9AAD43838EF351D00563C90 /* DemoData.swift */; };
 		8E919C76F28AF74FAAF20917 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46858B8543204DFA6C63AD3E /* MessageBubble.swift */; };
-		8EBAC29E9DD13427CD69395E /* HostEnrollmentCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10FCCF49653C4D623A96D6DA /* HostEnrollmentCode.swift */; };
 		8EDA4C2E877CAD814AB858A2 /* AgentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25C046928F93448B2EF444EA /* AgentStore.swift */; };
 		8F960718293041A1B2C3D4E5 /* HermesHealthWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6071829304152637485961A /* HermesHealthWidget.swift */; };
 		90C742068B472BEBD30D66F5 /* HistorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80648F2BBD9E9B12BC77F71 /* HistorySheet.swift */; };
@@ -240,7 +239,6 @@
 		099D088C14950F66C936628A /* HermesHostStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHostStore.swift; sourceTree = "<group>"; };
 		0E8D4F4FAE8632C350EC541F /* profiles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = profiles.json; path = profiles.json; sourceTree = "<group>"; };
 		1039BF472349974021D833D4 /* PendingAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAttachment.swift; sourceTree = "<group>"; };
-		10FCCF49653C4D623A96D6DA /* HostEnrollmentCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostEnrollmentCode.swift; sourceTree = "<group>"; };
 		119949DDA9BCA6AAA077EE1E /* WorkspaceTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkspaceTransport.swift; path = WorkspaceTransport.swift; sourceTree = "<group>"; };
 		15AC443690718A8133DB91E5 /* board.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = board.json; path = board.json; sourceTree = "<group>"; };
 		164FC29A86F0762768A9E444 /* MockLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockLocationService.swift; sourceTree = "<group>"; };
@@ -821,7 +819,6 @@
 				43EABB109930DF9870A27636 /* DeviceRegistrationRequest.swift */,
 				078C83E5060FEBACAC22F2F2 /* HermesActivityAttributes.swift */,
 				06E9521DE6CA159C9089AB10 /* HermesHostStatus.swift */,
-				10FCCF49653C4D623A96D6DA /* HostEnrollmentCode.swift */,
 				8F93EA9C1C026795AB668C6E /* Message.swift */,
 				6865C8B4CE32FE713C940305 /* MessageSender.swift */,
 				CCCECDD8C05223FD5B22B5AD /* MessageStatus.swift */,
@@ -1080,7 +1077,6 @@
 				24ADF49D0A89908EA74858B1 /* HermesHostServiceProtocol.swift in Sources */,
 				9BB3ED1B07E76217411E1383 /* HermesHostStatus.swift in Sources */,
 				20CE9A560BB1A46ED0FC5E86 /* HermesHostStore.swift in Sources */,
-				8EBAC29E9DD13427CD69395E /* HostEnrollmentCode.swift in Sources */,
 				FC8CA757C10C10EFF9152E1D /* InlineDiffView.swift in Sources */,
 				B4095C26025A6A2BE4C729EC /* KeychainSecureStore.swift in Sources */,
 				A763AB35A7712B3BED13720A /* LiveActivityService.swift in Sources */,

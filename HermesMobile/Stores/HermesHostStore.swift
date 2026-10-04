@@ -11,7 +11,6 @@ enum HermesHostConnectionState: Equatable, Sendable {
 @Observable
 final class HermesHostStore {
     var currentHost: HermesHostStatus?
-    var activeEnrollmentCode: HostEnrollmentCode?
     var isLoading = false
     var isWorking = false
     var lastErrorMessage: String?
@@ -63,42 +62,8 @@ final class HermesHostStore {
         }
     }
 
-    func generateEnrollmentCode() async {
-        guard !isWorking else { return }
-
-        isWorking = true
-        defer { isWorking = false }
-
-        do {
-            activeEnrollmentCode = try await hostService.createEnrollmentCode(accessToken: await accessTokenProvider())
-            currentHost = try await hostService.fetchCurrentHost(accessToken: await accessTokenProvider())
-            lastErrorMessage = nil
-            onHostChanged?()
-        } catch {
-            lastErrorMessage = error.localizedDescription
-        }
-    }
-
-    func revokeCurrentHost() async {
-        guard !isWorking else { return }
-
-        isWorking = true
-        defer { isWorking = false }
-
-        do {
-            try await hostService.revokeCurrentHost(accessToken: await accessTokenProvider())
-            currentHost = nil
-            activeEnrollmentCode = nil
-            lastErrorMessage = nil
-            onHostChanged?()
-        } catch {
-            lastErrorMessage = error.localizedDescription
-        }
-    }
-
     func reset() {
         currentHost = nil
-        activeEnrollmentCode = nil
         isLoading = false
         isWorking = false
         lastErrorMessage = nil

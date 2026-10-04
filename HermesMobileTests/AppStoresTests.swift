@@ -157,18 +157,6 @@ struct AppStoresTests {
             }
             return currentHost
         }
-
-        func createEnrollmentCode(accessToken: String?) async throws -> HostEnrollmentCode {
-            HostEnrollmentCode(
-                setupCode: "HC1:test-setup-code",
-                expiresAt: .distantFuture,
-                relayHost: "relay.example.test"
-            )
-        }
-
-        func revokeCurrentHost(accessToken: String?) async throws {
-            currentHost = nil
-        }
     }
 
     @MainActor
@@ -1406,7 +1394,7 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
-    func hostStoreGeneratesEnrollmentCodeAndClearsOnRevoke() async throws {
+    func hostStoreRefreshesCurrentHost() async throws {
         let service = RecordingHermesHostService()
         service.currentHost = HermesHostStatus(
             id: UUID(),
@@ -1430,12 +1418,6 @@ struct AppStoresTests {
         await hostStore.refresh()
         #expect(hostStore.currentHost?.resolvedDisplayName == "Home Mac mini")
 
-        await hostStore.generateEnrollmentCode()
-        #expect(hostStore.activeEnrollmentCode?.setupCode == "HC1:test-setup-code")
-
-        await hostStore.revokeCurrentHost()
-        #expect(hostStore.currentHost == nil)
-        #expect(hostStore.activeEnrollmentCode == nil)
     }
 
     @Test @MainActor
