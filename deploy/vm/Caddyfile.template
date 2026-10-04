@@ -5,8 +5,8 @@
 	}
 }
 
-# Loopback only: `tailscale serve` terminates TLS on the tailnet and forwards here.
-http://127.0.0.1:8080 {
+# Any Host header (tailscale serve forwards the *.ts.net name), bound to loopback only: `tailscale serve` terminates TLS on the tailnet and forwards here.
+http://:8080 {
 	bind 127.0.0.1
 	encode gzip
 

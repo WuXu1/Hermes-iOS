@@ -26,6 +26,7 @@ Caddy only exposes `/v1/*` and returns 404 for connector, host, push, talk, docs
 
 - The VM is on your tailnet (`tailscale status` works on it). No inbound firewall rules are needed.
 - In the Tailscale admin console (DNS), MagicDNS and HTTPS certificates are enabled for the tailnet.
+- Tailscale issues a certificate for the `ts.net` name, which puts the machine and tailnet name into public Certificate Transparency logs (Tailscale documents this).
 - The Tailscale app is installed on the iPhone, signed into the same tailnet and switched on whenever you use Hermes Mobile.
 
 ## Install
@@ -36,7 +37,7 @@ On the VM, with a checkout of this repo:
 sudo deploy/vm/install.sh --repo <path-to-checkout>
 ```
 
-The VM's name (`<machine>.<tailnet>.ts.net`) is read from `tailscale status`; pass `--domain <name>` to override. The script then configures `tailscale serve --bg --https=443 http://127.0.0.1:8080`. If `tailscale serve` or Funnel already has a different configuration it stops without changing it. The first HTTPS request may take a few seconds while the certificate is issued.
+The VM's name (`<machine>.<tailnet>.ts.net`) is read from `tailscale status`. The script requires Tailscale to be running with HTTPS certificates enabled, then then configures `tailscale serve --bg --https=443 http://127.0.0.1:8080`. If `tailscale serve` or Funnel already has a different configuration it stops without changing it. The first HTTPS request may take a few seconds while the certificate is issued.
 
 Safe to rerun; existing secrets are kept.
 
@@ -77,7 +78,7 @@ From a device on the tailnet (Tailscale on), check the blocked routes are closed
 
 ```bash
 base=https://<machine>.<tailnet>.ts.net
-curl -s -o /dev/null -w "health %{http_code}\n" $base/v1/health            # 200
+curl -s -w "\nhealth %{http_code}\n" $base/v1/health                       # 200 with a JSON body, not an empty reply
 for p in v1/hosts/ws v1/device/register v1/hosts/current/revoke v1/connector/setup v1/talk/readiness internal/inbox/create; do
   curl -s -o /dev/null -w "$p %{http_code}\n" -X POST $base/$p            # each 404
 done
@@ -118,7 +119,7 @@ sudo systemctl restart hermes-mobile-relay hermes-mobile-connector
 ## Rollback
 
 ```bash
-sudo deploy/vm/uninstall.sh              # add --keep-data to keep the relay database and connector state; also runs `tailscale serve --https=443 off`
+sudo deploy/vm/uninstall.sh              # add --keep-data to keep the relay database and connector state; also runs `tailscale serve --https=443 off`, which turns off the whole Tailscale HTTPS :443 listener on the VM
 sudo systemctl restart hermes-gateway    # picks up the removed phone-context entries
 tailscale serve status                   # confirm nothing is left
 ```

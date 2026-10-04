@@ -6,28 +6,29 @@
 # Idempotent: safe to rerun after pulling a new version of the repo.
 set -euo pipefail
 
-DOMAIN="" REPO=""
+REPO=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --domain) DOMAIN="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-[[ -n "$REPO" ]] || { echo "usage: install.sh [--domain <machine>.<tailnet>.ts.net] --repo <checkout>" >&2; exit 2; }
-if [[ -n "$DOMAIN" ]]; then
-  [[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "--domain must contain only letters, digits, dots and hyphens" >&2; exit 2; }
-fi
+[[ -n "$REPO" ]] || { echo "usage: install.sh --repo <checkout>" >&2; exit 2; }
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 id hermes >/dev/null || { echo "the hermes user is missing" >&2; exit 1; }
 for tool in rsync python3 curl; do
   command -v "$tool" >/dev/null || { echo "missing required tool: $tool (apt-get install $tool)" >&2; exit 1; }
 done
 command -v tailscale >/dev/null || { echo "tailscale is not installed; install it and join the tailnet first" >&2; exit 1; }
-if [[ -z "$DOMAIN" ]]; then
-  DOMAIN=$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print((json.load(sys.stdin).get("Self") or {}).get("DNSName","").rstrip("."))' 2>/dev/null || true)
-  [[ -n "$DOMAIN" ]] || { echo "could not read this machine's Tailscale name; is tailscale up (tailscale status)?" >&2; exit 1; }
-fi
+TS_JSON=$(tailscale status --json 2>/dev/null || true)
+DOMAIN=$(printf '%s' "$TS_JSON" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+if d.get("BackendState") != "Running" or not d.get("CertDomains"):
+    sys.exit(1)
+print((d.get("Self") or {}).get("DNSName", "").rstrip("."))
+' 2>/dev/null || true)
+[[ -n "$DOMAIN" ]] || { echo "tailscale is not Running, or HTTPS certificates are not enabled: enable MagicDNS + HTTPS certificates in the Tailscale admin console (DNS) and check 'tailscale status'" >&2; exit 1; }
 [[ $DOMAIN =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || { echo "the Tailscale name '$DOMAIN' contains unexpected characters" >&2; exit 1; }
 [[ $DOMAIN == *.ts.net ]] || { echo "the Tailscale name '$DOMAIN' does not end in .ts.net; enable MagicDNS for the tailnet (admin console, DNS)" >&2; exit 1; }
 [[ -d "$REPO/relay" && -d "$REPO/connector" && -d "$REPO/deploy/vm" ]] || { echo "--repo is not a Hermes-iOS checkout" >&2; exit 1; }
@@ -161,6 +162,7 @@ web = cfg.get("Web") or {}
 ok = (set(cfg) <= {"TCP", "Web"}
       and not cfg.get("AllowFunnel")
       and set(cfg.get("TCP", {})) == {"443"}
+      and cfg["TCP"]["443"].get("HTTPS") is True
       and set(web) == {dom + ":443"}
       and set(web[dom + ":443"].get("Handlers", {})) == {"/"}
       and web[dom + ":443"]["Handlers"]["/"].get("Proxy") == want)
