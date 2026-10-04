@@ -118,7 +118,7 @@ struct ConnectHermesScreen: View {
                     .background(Design.Colors.surface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
                     .accessibilityLabel("Relay URL")
 
-                Text("This should be your relay API base URL. The app will append pairing and chat endpoints to it.")
+                Text("This should be your relay API base URL. The app will append pairing and chat endpoints to it. If your relay is on a Tailscale network, switch Tailscale on first.")
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
             } else if let hostedRelayBaseURL = relayConfiguration.hostedRelayBaseURL {
