@@ -26,11 +26,3 @@ jobs:
         with:
           path: Hermes.ipa
           archive: false
-
-      - name: Publish to Personal Source Latest Release
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
-        run: |
-          if [ -n "$GH_TOKEN" ]; then
-            gh release upload Latest Hermes.ipa --clobber -R WuXu1/personal-ios-repo-assets
-          fi
